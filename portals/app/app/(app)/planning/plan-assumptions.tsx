@@ -137,7 +137,8 @@ export function PlanAssumptions({
                             <Textarea
                               id={`prerequisite-${group}-${i}`}
                               value={item}
-                              rows={2}
+                              rows={1}
+                              className="min-h-control-xl field-sizing-content"
                               aria-invalid={
                                 content.assumptions.length > 8000 || undefined
                               }
@@ -193,7 +194,8 @@ export function PlanAssumptions({
                   id={`plan-${field}`}
                   value={content[field]}
                   maxLength={8000}
-                  rows={3}
+                  rows={1}
+                  className="min-h-control-xl field-sizing-content"
                   disabled={disabled}
                   onChange={(e) =>
                     edit({ ...content, [field]: e.target.value })

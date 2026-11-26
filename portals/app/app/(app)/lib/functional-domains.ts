@@ -339,8 +339,8 @@ export function resolveCrosscutting(
  *
  * THE RULE, and it splits the five on evidence rather than on taste:
  *
- *   one route  -> the domain IS that page. deployment is /planning and
- *                 settlement is /delivery; every other row in those columns is
+ *   one route  -> the domain IS that page. settlement is /delivery;
+ *                 every other row in that column is
  *                 a section of that same page or unbuilt. Sending the name
  *                 there is not a lie, it is the fact about that domain, and a
  *                 home page would be a door standing in front of a door.
@@ -348,14 +348,15 @@ export function resolveCrosscutting(
  *   two+ routes -> no single page is the domain, so the name gets a HOME that
  *                 says what crosses its modules. armory (/strategy + /catalog),
  *                 recon (/campaign + /signal) and position (/account +
- *                 /pipeline) each hold two real places and a fact that lives
+ *                 /pipeline), and deployment (four workspaces) hold real places
+ *                 and a fact that lives
  *                 between them.
  *
  * A home page earns its existence only by saying something no module page
  * says. The earlier version of this file argued against five landing pages
  * whose whole content would be the module list the reader is already looking
  * at, and that argument still stands - it is why the homes carry cross-module
- * state and why two domains have none.
+ * state and why a single-route domain has none.
  */
 export const DOMAIN_HOME_PREFIX = "/domain";
 

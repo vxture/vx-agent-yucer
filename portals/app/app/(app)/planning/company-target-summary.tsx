@@ -30,17 +30,17 @@ export function CompanyTargetAllocation({
       className="flex flex-wrap items-center gap-x-md gap-y-xs text-body"
       data-company-target-allocation
     >
-      {showTarget ? <span className="inline-flex items-baseline gap-xs"><span className="text-muted-foreground">{R.companyTarget}</span><strong className="text-heading-3 font-semibold tabular-nums text-foreground">{format(target?.target ?? null)}</strong></span> : null}
+      {showTarget ? <span className="inline-flex items-baseline gap-xs"><span className="text-muted-foreground">{R.companyTarget}</span><strong className="text-body font-medium tabular-nums text-primary-text">{format(target?.target ?? null)}</strong></span> : null}
       <span className="inline-flex items-baseline gap-xs">
         <span className="text-muted-foreground">{T.allocated}</span>
-        <strong className="text-heading-3 font-semibold tabular-nums text-foreground">
+        <strong className="text-body font-medium tabular-nums text-primary-text">
           {format(allocated)}
         </strong>
       </span>
       <span className="inline-flex items-baseline gap-xs">
         <span className="text-muted-foreground">{T.allocation}</span>
         <strong
-          className={`text-heading-3 font-semibold tabular-nums ${balance != null && Number(balance) < 0 ? "text-destructive" : "text-foreground"}`}
+          className={`text-body font-medium tabular-nums ${balance != null && Number(balance) < 0 ? "text-destructive" : "text-foreground"}`}
         >
           {format(balance)}
         </strong>

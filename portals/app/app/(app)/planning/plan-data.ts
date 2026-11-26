@@ -27,6 +27,7 @@ export type PlanSources = {
   strategies?: Pick<PlanRecord, "id" | "lineageId" | "versionNo" | "name" | "period" | "expectations" | "ownerSub">[];
   currentSub?: string;
   canStrategy?: boolean;
+  canAttainment?: boolean;
   regions: {
     id: string;
     divisionId: string;
@@ -96,6 +97,7 @@ export async function loadPlanSources(s: AppSession): Promise<PlanSources> {
   const ts = salesRegionTerritories(divisions.value, territories.value);
   return {
     canStrategy, currentSub: s.user.sub,
+    canAttainment: can(s.authz, s.entitlement, "pipeline.view", "ui").allowed,
     strategies: strategies?.ok ? currentStrategyPlans(strategies.value).filter(p => p.versionNo && ["approved", "active"].includes(p.status)).map(p => ({ id:p.id,lineageId:p.lineageId,versionNo:p.versionNo,name:p.publishedSnapshot?.name ?? p.name,period:p.publishedSnapshot?.period ?? p.period,expectations:p.publishedSnapshot?.expectations ?? [],ownerSub:p.ownerSub })) : [],
     regions: divisions.value.map((d) => {
       const t = ts.find((t) => t.divisionIds.includes(d.id));

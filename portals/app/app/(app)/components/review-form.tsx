@@ -3,6 +3,7 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { Button, Field, FieldLabel, Input, NativeSelect, Textarea } from "@vxture/design-ui";
 import type { DealReviewProps } from "./deal-review";
 import { useMessages } from "../lib/i18n/provider";
+import styles from "./deployment-card.module.css";
 import { ReviewDraftSections } from "./review-draft";
 
 export function ReviewForm({ opportunityId, status, review, reasons, knownRivals = [], draft, onNarrate, onRecord, onSaved, onCancel, onDirtyChange }: Pick<DealReviewProps, "opportunityId" | "status" | "review" | "reasons" | "knownRivals" | "draft" | "onNarrate" | "onRecord"> & {
@@ -58,11 +59,11 @@ export function ReviewForm({ opportunityId, status, review, reasons, knownRivals
       </Field>
     </div>
     <Field><FieldLabel htmlFor={`lessons-${opportunityId}`}>{W.lessonsLabel}</FieldLabel>
-      <Textarea id={`lessons-${opportunityId}`} value={lessons} onChange={e => setLessons(e.target.value)} maxLength={4000} rows={5} placeholder={T.lessonsHint} disabled={pending}/>
+      <Textarea id={`lessons-${opportunityId}`} value={lessons} onChange={e => setLessons(e.target.value)} maxLength={4000} rows={2} className="min-h-control-xl field-sizing-content" placeholder={T.lessonsHint} disabled={pending}/>
       <span className="text-right text-body-small text-muted-foreground">{lessons.length}/4000</span>
     </Field>
     {error ? <p role="alert" className="text-danger-text">{error}</p> : null}
-    <div className="sticky bottom-0 flex justify-end gap-sm border-t border-border bg-background pt-md pb-lg">
+    <div className={styles.drawerFooter}>
       {onCancel ? <Button variant="outline" size="xl" onClick={() => { if (!dirty || window.confirm(T.leave)) onCancel(); }} disabled={pending}>{W.cancel}</Button> : null}
       <Button size="xl" onClick={submit} disabled={pending}>{pending ? DS_LABELS.confirmPending : W.save}</Button>
     </div>

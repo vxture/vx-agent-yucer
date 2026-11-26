@@ -28,6 +28,7 @@ import { ForecastSnapshotBasis } from "../components/forecast-snapshot-basis";
 import { snapshotKey } from "../lib/attainment-progress";
 import { attainmentHref } from "../lib/attainment-workspace";
 import Link from "next/link";
+import businessLinks from "../components/business-reference.module.css";
 
 export async function AttainmentForecastView({
   period,
@@ -206,7 +207,7 @@ export async function AttainmentForecastView({
                   T.callNote,
                   VT.historyTarget,
                 ].map((label) => (
-                  <TableHead key={label}>{label}</TableHead>
+                  <TableHead key={label} className={[T.commit, T.bestCase, T.pipeline, T.publishedClosed, T.managerCall].includes(label) ? "text-right" : undefined}>{label}</TableHead>
                 ))}
               </TableRow>
             </TableHeader>
@@ -220,9 +221,9 @@ export async function AttainmentForecastView({
                       : undefined
                   }
                 >
-                  <TableCell className="whitespace-nowrap tabular-nums">
+                  <TableCell className="whitespace-nowrap text-right tabular-nums">
                     <Link
-                      className="no-underline transition-colors hover:text-primary-text"
+                      className={businessLinks.textLink}
                       href={attainmentHref({
                         period,
                         scope: selectionScope,
@@ -243,12 +244,12 @@ export async function AttainmentForecastView({
                   ].map((amount, index) => (
                     <TableCell
                       key={index}
-                      className="whitespace-nowrap tabular-nums"
+                      className="whitespace-nowrap text-right tabular-nums"
                     >
                       {formatMoney(amount.amount, amount.currency, locale)}
                     </TableCell>
                   ))}
-                  <TableCell className="whitespace-nowrap tabular-nums">
+                  <TableCell className="whitespace-nowrap text-right tabular-nums">
                     {p.callAmount
                       ? formatMoney(
                           p.callAmount.amount,
@@ -258,7 +259,7 @@ export async function AttainmentForecastView({
                       : "-"}
                   </TableCell>
                   <TableCell>{p.callNote ?? "-"}</TableCell>
-                  <TableCell className="text-body-small">
+                  <TableCell className="text-body">
                     {(() => {
                       const b = p.targetBasis?.find(
                         (b) => b.metric === "revenue",

@@ -1,6 +1,8 @@
 "use client";
 import { useState, type ReactNode } from "react";
-import { Button, EmptyState, Icon, Input, MetricListCard, NativeSelect, StatusBadge, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@vxture/design-ui";
+import { Button, EmptyState, Input, NativeSelect, StatusBadge, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@vxture/design-ui";
+import { DeploymentCard, DeploymentField, DeploymentMetrics } from "../components/deployment-card";
+import links from "../components/business-reference.module.css";
 import { Tag } from "../components/tag";
 import { Section } from "../components/help-section";
 import { TitleHelp } from "../components/title-help";
@@ -49,7 +51,7 @@ export function PlanRegions({ content, onSelect, edit = null, editing = false, d
     status: r => r.included ? 1 : 0,
   });
   const format = (v: string | null | undefined) => v == null ? "\u2014" : Number(v).toLocaleString(locale, { maximumFractionDigits: 2 });
-  const money = (r: Region, value: string | null | undefined) => <span className="whitespace-nowrap tabular-nums">{format(value)}<span className="ml-xs text-body-small font-normal text-muted-foreground">{r.annual?.currency}</span></span>;
+  const money = (r: Region, value: string | null | undefined) => <span className="inline-flex max-w-full flex-wrap items-baseline gap-x-xs tabular-nums"><span>{format(value)}</span><span className="text-body-small font-normal text-muted-foreground">{r.annual?.currency}</span></span>;
   const status = (r: Region) => {
     const pending = canEdit ? targetOf(r.id)?.target == null : r.annual?.target == null;
     return r.included ? <StatusBadge tone={pending ? "warning" : "info"}>{pending ? R.pending : T.included}</StatusBadge> : <Tag>{T.excluded}</Tag>;
@@ -63,24 +65,29 @@ export function PlanRegions({ content, onSelect, edit = null, editing = false, d
     const ratio = line.metric === "pipeline" ? planningPipelineCoverage(line[tier], revenue?.target, locale) : planningTierPercent(line[tier], line.target, locale);
     return <PlanningTargetValue content={content} line={line} tier={tier} ratio={ratio} edit={canEdit} disabled={disabled} lockedPeriods={lockedPeriods} labelPrefix={r.name}/>;
   };
-  const title = (r: Region) => <button data-control-kind="structural" type="button" disabled={disabled} className="text-left font-semibold transition-colors hover:text-primary-text" onClick={() => onSelect(r.id)}>{r.name}</button>;
   const toggle = (id: string) => setExpanded(keys => keys.includes(id) ? keys.filter(k => k !== id) : [...keys, id]);
   const actions = (r: Region) => <RowActions label={`${DS_LABELS.actionMenu} \u00b7 ${r.name}`} disabled={disabled} items={[
     { id: "open", label: editing ? T.editRegion : T.regionDetail, icon: "arrow-right", onSelect: () => onSelect(r.id) },
     ...(onAttainment ? [{ id: "actual", label: T.actual, icon: "chart-line" as const, onSelect: () => onAttainment(r.id) }] : []),
   ]}/>;
   const cards = rows.length ? <div className={`grid grid-cols-1 gap-md ${canEdit && selectedMetric === "margin" ? "" : "@3xl:grid-cols-2"} ${canEdit ? "" : "@7xl:grid-cols-3"}`}>
-      {rows.map(r => <MetricListCard key={r.id} title={<span className="flex min-w-0 items-center gap-sm text-body"><Icon name="map-pin" size="sm" className="shrink-0 text-muted-foreground"/>{title(r)}</span>} actions={<span className="flex items-center gap-sm">{status(r)}{actions(r)}</span>}
-        note={!r.included ? r.reason || T.excluded : undefined} footer={<div className="@container flex w-full min-w-0 flex-col gap-md text-body" data-region-allocation={r.id}>
-          <div className="flex flex-wrap items-center justify-between gap-sm"><span className="inline-flex items-center gap-sm"><Icon name="user" size="sm" className="text-muted-foreground"/><span className="text-muted-foreground">{T.owner}:</span><MemberName sub={r.ownerSub} fallback={W.ownerPending}/></span>{r.included && canEdit ? <span className="text-body-small text-muted-foreground">{R.share} {share(r)}</span> : null}</div>
-          {r.included ? <>
-            {canEdit ? <div className="grid grid-cols-1 gap-sm border-t border-border pt-md @xs:grid-cols-3">{tiers.map(tier => <div key={tier} className="flex min-w-0 flex-col gap-sm"><span className="text-body-small text-muted-foreground">{T[tier]}{selectedMetric === "margin" ? " %" : ""}</span>{value(r, tier)}</div>)}</div> : <dl className="grid grid-cols-3 gap-sm border-t border-border pt-md">{[[T.target, r.annual?.target], [W.customerSupport, r.supported], [W.supportGap, r.gap]].map(([label, value]) => <div key={label} className="flex min-w-0 flex-col gap-xs"><dt className="text-body-small text-muted-foreground">{label}</dt><dd className="text-body font-semibold">{money(r, value)}</dd></div>)}</dl>}
-            <div className="flex flex-wrap items-center gap-md border-t border-border pt-md text-muted-foreground"><span>{W.deployedCustomers} {r.customers} {W.customerUnit}</span><span>{T.people} {r.people} {T.personUnit}</span><span>{T.actions} {r.actions} {W.actionUnit}</span>
-              <Button size="sm" variant="ghost" className="ml-auto" onClick={() => toggle(r.id)} aria-expanded={expanded.includes(r.id)}>{expanded.includes(r.id) ? T.collapsePeriods : T.periodTargets}</Button>
-            </div>
-            {expanded.includes(r.id) ? <PlanTargetLedger content={content} scope={`territory:${r.id}`} edit={canEdit} disabled={disabled} lockedPeriods={lockedPeriods} periodsOnly open onOpenChange={() => toggle(r.id)}/> : null}
-          </> : null}
-        </div>}/>)}
+      {rows.map(r => <DeploymentCard key={r.id} icon="map-pin" title={r.name} onOpen={() => onSelect(r.id)} disabled={disabled} tags={status(r)} actions={actions(r)}
+        meta={<><span>{r.code}</span><span>Y{content.year}</span></>} footer={r.included ? <>
+          <div className="flex flex-wrap items-center gap-x-md gap-y-sm text-body-small text-muted-foreground"><span>{W.deployedCustomers} {r.customers} {W.customerUnit}</span><span>{T.people} {r.people} {T.personUnit}</span><span>{T.actions} {r.actions} {W.actionUnit}</span>
+            <Button size="xl" variant="ghost" className="ml-auto" onClick={() => toggle(r.id)} aria-expanded={expanded.includes(r.id)}>{expanded.includes(r.id) ? T.collapsePeriods : T.periodTargets}</Button>
+          </div>
+          {expanded.includes(r.id) ? <PlanTargetLedger content={content} scope={`territory:${r.id}`} edit={canEdit} disabled={disabled} lockedPeriods={lockedPeriods} periodsOnly open onOpenChange={() => toggle(r.id)}/> : null}
+        </> : undefined}>
+          <dl><DeploymentField label={T.owner}><MemberName sub={r.ownerSub} fallback={W.ownerPending}/></DeploymentField></dl>
+          {!r.included ? <p className="text-muted-foreground">{r.reason || T.excluded}</p> : <>
+            {canEdit ? <div className="grid grid-cols-1 gap-md @xs:grid-cols-3">{tiers.map(tier => <div key={tier} className="flex min-w-0 flex-col gap-sm"><span className="text-body text-muted-foreground">{T[tier]}{selectedMetric === "margin" ? " %" : ""}</span>{value(r, tier)}</div>)}</div> : <DeploymentMetrics items={[
+              { label: T.target, value: money(r, r.annual?.target), primary: true },
+              { label: W.customerSupport, value: money(r, r.supported) },
+              { label: W.supportGap, value: money(r, r.gap) },
+            ]}/>}
+            {canEdit ? <span className="text-body-small text-muted-foreground">{R.share} {share(r)}</span> : null}
+          </>}
+      </DeploymentCard>)}
     </div> : <EmptyState title={T.noRegions}/>;
   return <Section><div className="flex flex-col gap-md" data-region-workspace>
     <CollectionToolbar title={T.regions} icon="map-pin" help={canEdit ? R.allocationHelp : W.regionsHelp} mode={{ value: view, onChange: setView }} count={rows.length} notice={basis}
@@ -110,7 +117,7 @@ export function PlanRegions({ content, onSelect, edit = null, editing = false, d
 
 type RegionRow = ReturnType<typeof planningRegionRows>[number];
 function renderRegionName(row: RegionRow, onSelect: (id: string) => void, disabled: boolean, fallback: string) {
-  return <CollectionTitleCell title={<button data-control-kind="structural" type="button" disabled={disabled} className="text-left font-semibold transition-colors hover:text-primary-text" onClick={() => onSelect(row.id)}>{row.name}</button>} description={<MemberName sub={row.ownerSub} fallback={fallback}/>}/>;
+  return <CollectionTitleCell title={<button data-control-kind="structural" type="button" disabled={disabled} className={`${links.textLink} ${links.titleButton} text-left font-semibold`} onClick={() => onSelect(row.id)}>{row.name}</button>} description={<MemberName sub={row.ownerSub} fallback={fallback}/>}/>;
 }
 function renderDeployment(row: RegionRow, customerUnit: string, personUnit: string, actionUnit: string) {
   return <div className="flex flex-col gap-xs text-body"><span>{row.customers} {customerUnit}</span><span className="text-body-small text-muted-foreground">{row.people} {personUnit}{" \u00b7 "}{row.actions} {actionUnit}</span></div>;

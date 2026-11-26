@@ -11,6 +11,7 @@ import {
   Field,
   FieldLabel,
   Input,
+  Textarea,
   NativeSelect,
   Table,
   TableBody,
@@ -19,6 +20,9 @@ import {
   TableHeader,
   TableRow,
 } from "@vxture/design-ui";
+import styles from "../components/deployment-card.module.css";
+import links from "../components/business-reference.module.css";
+import { PageActionButton } from "../components/page-header-actions";
 import { RowActions } from "../components/table-fittings";
 import { useLocale, useMessages } from "../lib/i18n/provider";
 import type {
@@ -46,6 +50,11 @@ type Props = {
   disabled: boolean;
   lockedPeriods?: readonly string[];
 };
+function customerColumnClass(index: number, count: number) {
+  if (index === 0 || index === count - 1) return "w-table-col-fixed text-center";
+  if (index === 2 || index === 3) return "text-right";
+  return undefined;
+}
 export function PlanSupport({
   content: c,
   regionId,
@@ -57,11 +66,13 @@ export function PlanSupport({
   const locale = useLocale();
   const {
     PLAN_VERSION_TEXT: T,
+    FOCUS_TEXT: F,
     PLAN_VERSION_ERROR: E,
     DS_LABELS,
   } = useMessages();
   const [sourcePlanId, setSourcePlanId] = useState<string | null>(null);
   const sourceRequest = useRef(0);
+  const formChanged = useRef(false);
   const [sourceLoading, setSourceLoading] = useState(false);
   const [sourceMessage, setSourceMessage] = useState("");
   const [mode, setMode] = useState<"customer" | "team" | "action" | null>(null);
@@ -101,7 +112,14 @@ export function PlanSupport({
     },
     [],
   );
+  useEffect(() => {
+    const protect = (event: BeforeUnloadEvent) => { if (formChanged.current) event.preventDefault(); };
+    window.addEventListener("beforeunload", protect);
+    return () => window.removeEventListener("beforeunload", protect);
+  }, []);
   const close = () => {
+    if (formChanged.current && !window.confirm(F.unsaved)) return;
+    formChanged.current = false;
     sourceRequest.current++;
     setSourceLoading(false);
     setMode(null);
@@ -121,6 +139,7 @@ export function PlanSupport({
           result.source.currency === target?.currency &&
           result.source.period === target?.period
         ) {
+          formChanged.current = true;
           setBudget(result.source.amount);
           setSourcePlanId(result.source.id);
           setNote(`${T.customerBudget} · ${result.source.period}`);
@@ -160,6 +179,7 @@ export function PlanSupport({
     } else if (id) readBudget(id);
   };
   const open = (m: NonNullable<typeof mode>, key: string | null = null) => {
+    formChanged.current = false;
     sourceRequest.current++;
     setSourceLoading(false);
     setMode(m);
@@ -311,6 +331,7 @@ export function PlanSupport({
         next.actions = [...next.actions.filter((item) => item.key !== key), x];
       }
       edit(prunePlanningBudgets(next, c));
+      formChanged.current = false;
       close();
     } catch (cause) {
       setError(
@@ -365,23 +386,7 @@ export function PlanSupport({
   );
   return (
     <div className="flex flex-col gap-xl">
-      <Section title={T.customers} icon="building" help={T.customerHint} action={
-          <RowActions
-            label={T.addCustomer}
-            disabled={disabled || !target}
-            items={
-              edit && sources.canCustomers
-                ? [
-                    {
-                      id: "add",
-                      label: T.addCustomer,
-                      icon: "plus",
-                      onSelect: () => open("customer"),
-                    },
-                  ]
-                : []
-            }
-          />
+      <Section title={T.customers} icon="building" help={T.customerHint} action={edit && sources.canCustomers ? <PageActionButton disabled={disabled || !target} onClick={() => open("customer")}>{T.addCustomer}</PageActionButton> : undefined
       }>
         {c.contributions.some((x) => x.regionId === regionId) ? (
           <Table className="table-fixed min-w-panel-lg">
@@ -398,11 +403,7 @@ export function PlanSupport({
                 ].map((l, i, columns) => (
                   <TableHead
                     key={i}
-                    className={
-                      i === 0 || i === columns.length - 1
-                        ? "w-table-col-fixed text-center"
-                        : undefined
-                    }
+                    className={customerColumnClass(i, columns.length)}
                   >
                     {i === columns.length - 1 ? T.operations : l}
                   </TableHead>
@@ -421,7 +422,7 @@ export function PlanSupport({
                       </TableCell>
                       <TableCell>
                         <Link
-                          className="font-medium transition-colors hover:text-primary"
+                          className={`${links.textLink} font-medium`}
                           href={`/account/${b.accountId}`}
                         >
                           {b.name}
@@ -430,10 +431,10 @@ export function PlanSupport({
                           {b.period} · {b.currency}
                         </p>
                       </TableCell>
-                      <TableCell className="tabular-nums">
+                      <TableCell className="text-right tabular-nums">
                         {Number(b.amount).toLocaleString(locale)}
                       </TableCell>
-                      <TableCell className="tabular-nums">
+                      <TableCell className="text-right tabular-nums">
                         {Number(x.amount).toLocaleString(locale)}
                       </TableCell>
                       <TableCell>
@@ -477,23 +478,7 @@ export function PlanSupport({
           </p>
         )}
       </Section>
-      <Section title={T.team} icon="users" help={T.teamHint} action={
-          <RowActions
-            label={T.addMember}
-            disabled={disabled}
-            items={
-              edit && sources.canTeam
-                ? [
-                    {
-                      id: "add",
-                      label: T.addMember,
-                      icon: "plus",
-                      onSelect: () => open("team"),
-                    },
-                  ]
-                : []
-            }
-          />
+      <Section title={T.team} icon="users" help={T.teamHint} action={edit && sources.canTeam ? <PageActionButton disabled={disabled} onClick={() => open("team")}>{T.addMember}</PageActionButton> : undefined
       }>
         {c.team.some((x) => x.regionId === regionId) ? (
           <Table className="table-fixed min-w-panel-lg">
@@ -557,23 +542,7 @@ export function PlanSupport({
           </p>
         )}
       </Section>
-      <Section title={T.actions} icon="list-checks" help={T.actionHint} action={
-          <RowActions
-            label={T.addAction}
-            disabled={disabled}
-            items={
-              edit && sources.canTeam
-                ? [
-                    {
-                      id: "add",
-                      label: T.addAction,
-                      icon: "plus",
-                      onSelect: () => open("action"),
-                    },
-                  ]
-                : []
-            }
-          />
+      <Section title={T.actions} icon="list-checks" help={T.actionHint} action={edit ? <PageActionButton disabled={disabled} onClick={() => open("action")}>{T.addAction}</PageActionButton> : undefined
       }>
         {c.actions.some((x) => x.regionId === regionId) ? (
           <Table className="table-fixed min-w-panel-lg">
@@ -655,11 +624,12 @@ export function PlanSupport({
       >
         <fieldset
           disabled={disabled || !edit}
-          className="flex min-w-0 flex-col gap-lg"
+          className={styles.drawerFields}
+          onChange={() => { formChanged.current = true; }}
         >
           {mode === "customer" ? (
             <>
-              <Field>
+              <Field data-wide>
                 <FieldLabel htmlFor="plan-account-query">
                   {T.customerSearch}
                 </FieldLabel>
@@ -669,8 +639,8 @@ export function PlanSupport({
                   onChange={(e) => setQuery(e.target.value)}
                 />
               </Field>
-              <Field>
-                <FieldLabel htmlFor="plan-account">{T.customer}</FieldLabel>
+              <Field data-wide>
+                <FieldLabel htmlFor="plan-account" required>{T.customer}</FieldLabel>
                 <NativeSelect
                   id="plan-account"
                   value={accountId}
@@ -694,11 +664,11 @@ export function PlanSupport({
                     ))}
                 </NativeSelect>
               </Field>
-              <p className="text-body-small text-muted-foreground">
+              <p data-wide className="text-body-small text-muted-foreground">
                 {T.budgetSharedHint}
               </p>
               <Field>
-                <FieldLabel htmlFor="plan-budget">
+                <FieldLabel htmlFor="plan-budget" required>
                   {T.customerBudget} · {target?.currency}
                 </FieldLabel>
                 <Input
@@ -713,35 +683,7 @@ export function PlanSupport({
                 />
               </Field>
               <Field>
-                <FieldLabel htmlFor="plan-budget-note">
-                  {T.budgetNote}
-                </FieldLabel>
-                <Input
-                  id="plan-budget-note"
-                  disabled={sourceLoading}
-                  value={note}
-                  maxLength={8000}
-                  onChange={(e) => setNote(e.target.value)}
-                />
-              </Field>
-              <Button
-                size="md"
-                variant="secondary"
-                disabled={!accountId || sourceLoading}
-                onClick={() => readBudget(accountId)}
-              >
-                {sourceLoading ? T.budgetLoading : T.budgetRetry}
-              </Button>
-              {sourceMessage ? (
-                <p
-                  className="text-body-small text-muted-foreground"
-                  role="status"
-                >
-                  {sourceMessage}
-                </p>
-              ) : null}
-              <Field>
-                <FieldLabel htmlFor="plan-contribution">
+                <FieldLabel htmlFor="plan-contribution" required>
                   {T.contribution}
                 </FieldLabel>
                 <Input
@@ -751,6 +693,35 @@ export function PlanSupport({
                   onChange={(e) => setContribution(e.target.value)}
                 />
               </Field>
+              <Field data-wide>
+                <FieldLabel htmlFor="plan-budget-note">
+                  {T.budgetNote}
+                </FieldLabel>
+                <Textarea
+                  rows={1} className="min-h-control-xl field-sizing-content"
+                  id="plan-budget-note"
+                  disabled={sourceLoading}
+                  value={note}
+                  maxLength={8000}
+                  onChange={(e) => setNote(e.target.value)}
+                />
+              </Field>
+              <Button
+                className="justify-self-start"
+                size="xl"
+                variant="secondary"
+                disabled={!accountId || sourceLoading}
+                onClick={() => readBudget(accountId)}
+              >
+                {sourceLoading ? T.budgetLoading : T.budgetRetry}
+              </Button>
+              {sourceMessage ? (
+                <output data-wide
+                  className="text-body-small text-muted-foreground"
+                >
+                  {sourceMessage}
+                </output>
+              ) : null}
               <Field>
                 <FieldLabel htmlFor="plan-responsibility">
                   {T.responsibility}
@@ -771,12 +742,12 @@ export function PlanSupport({
             <>
               <Field>
                 <FieldLabel htmlFor="plan-member">{T.member}</FieldLabel>
-                <MemberPicker value={member} onValueChange={setMember} label={T.member} emptyLabel={mode === "team" ? T.demand : T.select} options={sources.members.map(m => ({ value: m.sub, label: m.name }))} disabled={disabled || sourceLoading}/>
+                <MemberPicker value={member} onValueChange={value => { formChanged.current = true; setMember(value); }} label={T.member} emptyLabel={mode === "team" ? T.demand : T.select} options={sources.members.map(m => ({ value: m.sub, label: m.name }))} disabled={disabled || sourceLoading}/>
               </Field>
               {mode === "team" ? (
                 <>
                   <Field>
-                    <FieldLabel htmlFor="plan-role">{T.role}</FieldLabel>
+                    <FieldLabel htmlFor="plan-role" required>{T.role}</FieldLabel>
                     <Input
                       id="plan-role"
                       value={role}
@@ -799,7 +770,7 @@ export function PlanSupport({
                     </NativeSelect>
                   </Field>
                   <Field>
-                    <FieldLabel htmlFor="plan-percent">
+                    <FieldLabel htmlFor="plan-percent" required>
                       {member ? T.percent : T.requestedFte}
                     </FieldLabel>
                     <Input
@@ -813,23 +784,24 @@ export function PlanSupport({
                       }
                     />
                   </Field>
-                  <DateRangeField id="plan-team-range" startOn={start} endOn={end} allowPartial
-                    onChange={(start, end) => { setStart(start);setEnd(end); }} />
+                  <div data-wide><DateRangeField id="plan-team-range" startOn={start} endOn={end} allowPartial
+                    onChange={(start, end) => { formChanged.current = true; setStart(start);setEnd(end); }} /></div>
                 </>
               ) : (
                 <>
-                  <Field>
-                    <FieldLabel htmlFor="plan-objective">
+                  <Field data-wide>
+                    <FieldLabel htmlFor="plan-objective" required>
                       {T.objective}
                     </FieldLabel>
-                    <Input
+                    <Textarea
+                      rows={1} className="min-h-control-xl field-sizing-content"
                       id="plan-objective"
                       value={objective}
                       onChange={(e) => setObjective(e.target.value)}
                     />
                   </Field>
                   <Field>
-                    <FieldLabel htmlFor="plan-due">{T.due}</FieldLabel>
+                    <FieldLabel htmlFor="plan-due" required>{T.due}</FieldLabel>
                     <Input
                       type="date"
                       id="plan-due"
@@ -842,11 +814,11 @@ export function PlanSupport({
             </>
           )}
           {error ? (
-            <p role="alert" className="text-body-small text-destructive">
+            <p data-wide role="alert" className="text-body text-destructive">
               {error}
             </p>
           ) : null}
-          <div className="flex justify-end gap-sm">
+          <div data-wide className={styles.drawerFooter}>
             <Button data-control-kind="drawer-action" size="xl" variant="secondary" onClick={close}>
               {T.cancel}
             </Button>

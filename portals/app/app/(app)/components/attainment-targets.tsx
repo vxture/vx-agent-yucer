@@ -1,4 +1,6 @@
 "use client";
+import { DeploymentCard, DeploymentMetrics } from "./deployment-card";
+import links from "./business-reference.module.css";
 
 import { Section } from "./help-section";
 import { useState } from "react";
@@ -9,7 +11,6 @@ import {
   Drawer,
   EmptyState,
   Icon,
-  MetricListCard,
   Table,
   TableBody,
   TableCell,
@@ -24,7 +25,7 @@ import type { AttainmentPlan } from "../../domains/planning/attainment-plan";
 import { attainmentBalance, type ExecutionRow, type SupportDeal } from "../lib/attainment-progress";
 import { attainmentCoverageHref, attainmentHref, planningHref } from "../lib/attainment-workspace";
 import { useLocale, useMessages } from "../lib/i18n/provider";
-import { formatMoney, formatMoneyCompact } from "../lib/view-model";
+import { formatMoney } from "../lib/view-model";
 import { MemberName, useMemberName } from "../lib/member-names";
 import { RowActions } from "./table-fittings";
 import { CollectionToolbar, collectionDrawerWidth } from "./collection-layout";
@@ -33,8 +34,7 @@ import { AttainmentProgressBar } from "./attainment-progress-bar";
 import { periodRange, within } from "../../domains/shared/period";
 import { sumMoney } from "../../domains/shared/money";
 
-const LINK =
-  "no-underline transition-colors hover:text-primary-text focus-visible:text-primary-text";
+const LINK = links.textLink;
 
 function EvidenceLink({ row, kind, children }: { readonly row: ExecutionRow; readonly kind: "won" | "open"; readonly children: React.ReactNode }) {
   if (row.scope === "unallocated") return <>{children}</>;
@@ -268,7 +268,7 @@ export function ExecutionTargetCard({
     row.planRevision,
     row.period,
   );
-  const coverageLink = attainmentCoverageHref({ period: row.period, scope: selectionScope === "personal" ? "personal" : row.scope });
+  const coverageLink = attainmentCoverageHref({ period: row.period, scope: selectionScope === "personal" ? "personal" : row.scope, planRevision: row.planRevision });
   const unallocated = row.scope === "unallocated";
   const coverageNote = <CoverageNote row={row} />;
   const metrics = [
@@ -289,41 +289,16 @@ export function ExecutionTargetCard({
       value: <Balance row={row} prefix={false} />,
     },
   ];
+  let cardIcon: "user" | "globe" | "flag" = "flag";
+  if (compact) cardIcon = row.scope.startsWith("owner:") ? "user" : "globe";
   return (
-    <MetricListCard
-      title={
-        <span className="flex min-h-control-xl items-center gap-sm">
-          <Icon
-            name={compact ? row.scope.startsWith("owner:") ? "user" : "globe" : "flag"}
-            size="md"
-            className="shrink-0 text-muted-foreground"
-          />
-          {compact && !unallocated ? (
-            <Link
-              className={LINK}
-              href={attainmentHref({ period: row.period, scope: row.scope, planRevision: row.planRevision })}
-            >
-              {row.name}
-            </Link>
-          ) : (
-            <span>{row.name}</span>
-          )}
-          <span className="text-body-small font-normal text-muted-foreground">
-            {row.period}
-          </span>
-        </span>
-      }
+    <DeploymentCard
+      icon={cardIcon}
+      title={row.name}
+      href={compact && !unallocated ? attainmentHref({ period: row.period, scope: row.scope, planRevision: row.planRevision }) : undefined}
+      meta={<><span>{row.period}</span><span>{row.target?.revision ? `V${row.target.revision.version}` : row.target ? T.legacy : T.noTarget}</span><span>{row.currency}</span></>}
       actions={
         <div className="flex items-center gap-sm">
-          <span className="whitespace-nowrap text-body-small text-muted-foreground">
-            {row.target?.revision
-              ? `V${row.target.revision.version}`
-              : row.target
-                ? T.legacy
-                : T.noTarget}{" "}
-            {" \u00b7 "}
-            {row.currency}
-          </span>
           <RowActions
             label={`${row.name} ${T.source}`}
             items={[
@@ -392,55 +367,12 @@ export function ExecutionTargetCard({
           />
         </div>
       }
-      footer={
+    >
         <div className="@container flex w-full min-w-0 flex-col gap-md">
-          {!compact ? (
-            <div
-              className="grid grid-cols-1 gap-md @xl:grid-cols-2 @5xl:grid-cols-4"
-              data-attainment-summary
-            >
-              {metrics.map((m) => (
-                <MetricListCard
-                  key={m.key}
-                  title={
-                    <span className="flex items-center gap-md">
-                      <Icon name={m.key === "target" ? "coins" : m.key === "closed" ? "chart-line" : m.key === "rate" ? "gauge" : "scales"} size="xl" className="shrink-0 text-muted-foreground" />
-                      <span className="flex min-w-0 flex-1 flex-col gap-sm">
-                        <span className="whitespace-nowrap">{m.label}</span>
-                        <span className={`inline-flex items-baseline gap-sm whitespace-nowrap text-heading-2 font-semibold tabular-nums ${m.key === "target" ? "text-primary" : "text-foreground"}`}>
-                          {m.value}{m.key === "gap" ? coverageNote : null}
-                        </span>
-                        {m.key === "target" && row.target ? (
-                          <span className="text-body-small font-normal text-muted-foreground" title={`${T.floor} ${amount(row.target.floor)} / ${T.stretch} ${amount(row.target.stretch)}`}>
-                            {T.floor} {formatMoneyCompact(row.target.floor, row.currency, locale)}{" \u00b7 "}{T.stretch} {formatMoneyCompact(row.target.stretch, row.currency, locale)}
-                          </span>
-                        ) : null}
-                      </span>
-                    </span>
-                  }
-                />
-              ))}
-            </div>
-          ) : (
-            <>
-              <div
-                className="grid grid-cols-2 gap-md px-lg @3xl:grid-cols-4"
-                data-region-metrics
-              >
-                {metrics.map((m) => (
-                  <div key={m.key} className="flex min-w-0 flex-col gap-xs">
-                    <span className="whitespace-nowrap font-semibold tabular-nums">
-                      {m.value}
-                    </span>
-                    <span className="inline-flex items-baseline gap-xs whitespace-nowrap text-body-small text-muted-foreground">
-                      {m.label}
-                      {m.key === "gap" ? coverageNote : null}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </>
-          )}
+          <div data-attainment-summary={!compact || undefined} data-region-metrics={compact || undefined}>
+            <DeploymentMetrics items={metrics.map(m => ({ label: m.label, primary: m.key === "target", value: <span className="inline-flex min-w-0 max-w-full flex-wrap items-baseline gap-xs">{m.value}{m.key === "gap" ? coverageNote : null}</span>,
+              hint: m.key === "target" && row.target ? `${T.floor} ${formatMoney(row.target.floor, row.currency, locale)} / ${T.stretch} ${formatMoney(row.target.stretch, row.currency, locale)}` : undefined }))}/>
+          </div>
           {compact ? <AttainmentProgressBar row={row} details /> : null}
           {unallocated ? (
             <p className="text-body-small text-muted-foreground">{T.unallocatedHint}</p>
@@ -500,8 +432,7 @@ export function ExecutionTargetCard({
             </div>
           ) : null}
         </div>
-      }
-    />
+    </DeploymentCard>
   );
 }
 
@@ -1078,7 +1009,7 @@ function AttainmentSourceContent({
                 ) : null}
                 <p className="text-body-small text-muted-foreground">
                   {a.evidenceRefs.length
-                    ? `${T.evidence}: ${a.evidenceRefs.join(" \u00b7 ")}`
+                    ? `${T.evidence}: ${a.evidenceRefs.length}`
                     : T.noEvidence}
                 </p>
               </div>

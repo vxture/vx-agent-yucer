@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import businessLinks from "../components/business-reference.module.css";
 import { Button, Card, CardContent, Collapsible, CollapsibleContent, CollapsibleTrigger, Icon } from "@vxture/design-ui";
 import { TitleHelp } from "../components/title-help";
 import { StrategyQuantity } from "../components/strategy-detail-label";
@@ -70,7 +71,7 @@ export function StrategyHandoffPanel({ content, sources, edit, regionId, disable
       <CollapsibleContent><div data-strategy-acceptances>{groups.map(group => {
         const first = group[0]!, latest = sources.strategies?.find(p => (p.lineageId ?? p.id) === first.lineageId);
         return <div key={first.strategyId} className={styles.strategy} data-handoff-strategy={first.strategyId}>
-          <div className="flex min-w-0 items-center justify-between gap-lg"><Link href={`/strategy/${encodeURIComponent(first.strategyId)}`} className="inline-flex min-w-0 items-center gap-sm text-body font-medium transition-colors hover:text-primary-text"><Icon name="flag" size="sm" className="shrink-0 text-muted-foreground"/><span className="truncate" title={first.name}>{first.name}</span></Link><span className="shrink-0 text-body-small text-muted-foreground">V{first.version}{" \u00b7 "}{first.period}{latest && latest.id !== first.strategyId ? <span className="ml-sm" title={T.updated}>{T.newVersion}</span> : null}</span></div>
+          <div className="flex min-w-0 items-center justify-between gap-lg"><Link href={`/strategy/${encodeURIComponent(first.strategyId)}`} className={`${businessLinks.link} inline-flex min-w-0 items-center gap-sm text-body font-medium`}><Icon name="flag" size="sm" className="shrink-0"/><span className="truncate" title={first.name}>{first.name}</span></Link><span className="shrink-0 text-body-small text-muted-foreground">V{first.version}{" \u00b7 "}{first.period}{latest && latest.id !== first.strategyId ? <span className="ml-sm" title={T.updated}>{T.newVersion}</span> : null}</span></div>
           <div className={styles.metrics}>{group.map(x => {
             const allocations = x.allocations.filter(a => a.regionId === regionId);
             const value = regionId ? acceptanceSummary([x], regionId)[0]!.amount : x.amount;

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import businessLinks from "../components/business-reference.module.css";
 import { Button, Card, CardContent, Drawer, Field, FieldLabel, Icon, InputGroup, InputGroupAddon, InputGroupInput, NativeSelect } from "@vxture/design-ui";
 import { MemberPicker } from "../components/member-picker";
 import { Tag } from "../components/tag";
@@ -59,7 +60,7 @@ export function StrategyHandoffDrawer({ draft, content, members, regionId, canEd
     </div>}>
     <div className={styles.content} data-business-fields data-handoff-drawer={company ? "company" : "region"}>
       <Card className="gap-0 py-md"><CardContent className="flex min-w-0 flex-col gap-md px-md">
-        <Link href={`/strategy/${encodeURIComponent(draft.strategyId)}`} className="inline-flex min-w-0 items-start gap-xs text-body font-medium transition-colors hover:text-primary-text"><Icon name="flag" size="sm" className="shrink-0 text-muted-foreground"/><span className="min-w-0 break-words">{draft.name}</span></Link>
+        <Link href={`/strategy/${encodeURIComponent(draft.strategyId)}`} className={`${businessLinks.link} inline-flex min-w-0 items-start gap-xs text-body font-medium`}><Icon name="flag" size="sm" className="shrink-0"/><span className="min-w-0 break-words">{draft.name}</span></Link>
         <div className="flex flex-wrap items-center gap-x-lg gap-y-xs text-body-small text-muted-foreground"><span>V{draft.version}{" \u00b7 "}{draft.period}</span>{!company ? <span className="inline-flex items-center gap-xs" title={T.owner}><MemberName sub={draft.ownerSub}/></span> : null}</div>
         <dl className="flex flex-wrap gap-x-xl gap-y-md border-t border-border pt-md">
           {[{ label: T.expected, value: draft.expectation.amount }, { label: T.accepted, value: draft.amount }].map(item => <div key={item.label} className="flex min-w-0 flex-col gap-xs">

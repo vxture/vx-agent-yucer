@@ -11,6 +11,8 @@ import { lockedPage } from "../components/locked-page";
 import { listTerritories } from "../../domains/planning/service";
 import { getPlanningStore } from "../../domains/shared/registry";
 import { can } from "../../authz/decide";
+import { WinLossModuleSummary } from "../components/deployment-module-summary";
+import { Tag } from "../components/tag";
 
 export const dynamic = "force-dynamic";
 export default async function WinLossPage({ searchParams }: { readonly searchParams: Promise<WinLossQuery> }) {
@@ -31,15 +33,17 @@ export default async function WinLossPage({ searchParams }: { readonly searchPar
   const rows = filterWinLossRows(all, filter);
   const regionIds = new Set(all.map(r => r.regionId));
   const summary = summarizeWinLoss(rows);
-  const dated = filterWinLossRows(all, { ...filter, dates: "period", status: "all", reason: "" });
-  const undated = filterWinLossRows(all, { ...filter, dates: "undated", status: "all", reason: "" }).length;
+  const overview = summarizeWinLoss(filterWinLossRows(all, { ...filter, status: "all", outcome: "all", reason: "", query: "" }));
+  const dated = filterWinLossRows(all, { ...filter, dates: "period", status: "all", outcome: "all", reason: "", query: "" });
+  const undated = filterWinLossRows(all, { ...filter, dates: "undated", status: "all", outcome: "all", reason: "", query: "" }).length;
   const years = [...new Set([Number(filter.period.replace(/^Y/, "").slice(0,4)), new Date().getUTCFullYear(), ...all.flatMap(r => r.closedAt ? [Number(r.closedAt.slice(0,4))] : [])])].sort((a,b) => b-a);
   return <ViewLayout className="pb-3xl">
-    <ModuleHeadline moduleKey="winLossReview" brief="winloss" help={T.help} pageActions={{ view: <WinLossViews filter={filter}/> }}/>
-    <PendingReviews key={`${session.workspaceId}|${session.user.sub}|${JSON.stringify(filter)}`} rows={rows} summary={summary} filter={filter}
+    <ModuleHeadline moduleKey="winLossReview" brief="winloss" help={T.help} tags={<Tag>{T[filter.view]}</Tag>} description={<WinLossModuleSummary summary={overview} filter={filter}/>} pageActions={{ more: <WinLossViews filter={filter}/> }}/>
+    <PendingReviews key={`${session.workspaceId}|${session.user.sub}|${JSON.stringify(filter)}`} rows={rows} summary={summary} overview={overview} filter={filter}
       datedCount={dated.length} undatedCount={undated} years={years}
       reasons={read.value.reasons.map(r => ({ id: r.id, name: r.name }))}
       regions={(regions.ok ? regions.value : []).filter(r => regionIds.has(r.id)).map(r => ({ id:r.id, name:r.name }))}
-      canPlan={session.scope.kind === "workspace" && can(session.authz, session.entitlement, "planning.target.view", "ui").allowed}/>
+      canPlan={session.scope.kind === "workspace" && can(session.authz, session.entitlement, "planning.target.view", "ui").allowed}
+      canRecord={can(session.authz, session.entitlement, "pipeline.winloss.record", "ui").allowed}/>
   </ViewLayout>;
 }
