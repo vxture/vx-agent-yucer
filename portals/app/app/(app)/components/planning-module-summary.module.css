@@ -1,5 +1,7 @@
-.summary { line-height: var(--body-line-height); }
+.summary { display: inline-flex; flex-wrap: wrap; gap: var(--space-xs) 0; line-height: var(--body-line-height); }
 .summary > span { display: inline-block; max-width: 100%; }
+.summary > span + span { margin-left: var(--space-sm); padding-left: var(--space-sm); border-left: var(--border-width-thin) solid var(--border); }
+.action { cursor: pointer; text-decoration: underline; text-underline-offset: var(--space-2xs); }
 .figure {
   display: inline-flex;
   max-width: 100%;

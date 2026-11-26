@@ -22,6 +22,17 @@ function validStrategyDraft(plan: OperationPlan, latest: OperationPlan | undefin
   return plan.basePlanId === latest?.id && ["approved", "active"].includes(latest.status);
 }
 
+/** Drafts that can still proceed to publication, including initial drafts. */
+export function pendingStrategyPlans<T extends OperationPlan>(plans: readonly T[]): T[] {
+  const latest = new Map<string, T>();
+  for (const plan of plans) {
+    if (plan.versionNo == null) continue;
+    const key = plan.lineageId ?? plan.id;
+    if ((latest.get(key)?.versionNo ?? 0) < plan.versionNo) latest.set(key, plan);
+  }
+  return plans.filter(plan => validStrategyDraft(plan, latest.get(plan.lineageId ?? plan.id)));
+}
+
 function draftEditingOperations(editable: boolean, rights: OperationRights): StrategyOperation[] {
   if (!editable) return [];
   const actions: StrategyOperation[] = [];

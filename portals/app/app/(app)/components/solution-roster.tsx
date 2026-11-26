@@ -8,6 +8,7 @@ import { CollectionTable, CollectionTitleCell } from "./collection-table";
 import { useCollectionView } from "./collection-view-provider";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import {
   EmptyState,
@@ -73,6 +74,7 @@ export interface SolutionRosterProps {
   readonly types: readonly ProductTypeRecord[];
   readonly currency: string;
   readonly canWrite: boolean;
+  readonly canConfigureProducts?: boolean;
   readonly onMove: (id: string, direction: MoveDirection) => Promise<{ ok: boolean; error?: string }>;
   readonly onStatus: (
     solutionId: string,
@@ -103,12 +105,14 @@ export function SolutionRoster({
   types,
   currency,
   canWrite,
+  canConfigureProducts = false,
   onMove,
   onStatus,
   onDelete,
 }: SolutionRosterProps) {
-  const { CATALOG_ERROR, CATALOG_TEXT, DATA_TABLE_LABELS, ROW_OPS, TABLE_TOOLBAR_TEXT, MARKET_STRATEGY_TEXT } =
+  const { CATALOG_ERROR, CATALOG_TEXT, DATA_TABLE_LABELS, ROW_OPS, TABLE_TOOLBAR_TEXT, MARKET_STRATEGY_TEXT, PLANNING_WORKSPACE_TEXT: W, DOMAIN_LABEL } =
     useMessages();
+  const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [detailId, setDetailId] = useState<string | null>(initialSolutionId ?? null);
   const detail = solutions.find((row) => row.solution.id === detailId);
@@ -358,6 +362,10 @@ export function SolutionRoster({
     <>
       <ModuleHeadline moduleKey="solution"
         description={<SolutionModuleSummary input={[solutions, products, facts, !!summaryReads?.prices && !!summaryReads?.policy, !!summaryReads?.solutions]}/>}
+        pageActions={{more:<RowActions label={W.pageActions(DOMAIN_LABEL.solution)} items={[
+          {id:"products",label:DOMAIN_LABEL.catalog,icon:"cube",onSelect:()=>router.push("/catalog")},
+          ...(canConfigureProducts?[{id:"settings",label:W.systemSettings,icon:"settings" as const,separatorBefore:true,onSelect:()=>router.push("/admin/product")}]:[]),
+        ]}/>}}
         help={<><p>{CATALOG_TEXT.rosterSolutionWhy}</p><p>{CATALOG_TEXT.solutionPricesHint}</p></>}
         create={canWrite ? { href: "/solution/new", label: CATALOG_TEXT.newSolutionEntry } : undefined} />
       {detail ? <SolutionDetails view={detail} products={products} facts={factsOf(detail)} currency={currency}

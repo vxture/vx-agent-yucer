@@ -27,6 +27,7 @@ export default async function ProductsPage() {
             pricing={{ prices, currency: policy.defaultCurrency, now, canPrice,
               onSave: savePrice, onDelete: deletePriceEntry }}
             canWrite={canWrite}
+            canViewSolutions={can(authz, entitlement, "catalog.solution.view", "ui").allowed}
             onMove={moveProductRow}
             onStatus={changeProductStatus}
             onDelete={deleteProduct}

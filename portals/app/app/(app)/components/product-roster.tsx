@@ -9,7 +9,7 @@ import { CollectionTable, CollectionTitleCell } from "./collection-table";
 import { useCollectionView } from "./collection-view-provider";
 
 import { useState, useTransition } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { inForceByProduct } from "../../domains/catalog/lib/pricing";
 import { StrategyInfoCard, StrategyInfoContent } from "./strategy-info-card";
 import layout from "./strategy-info-card.module.css";
@@ -73,6 +73,7 @@ export interface ProductRosterProps {
   readonly units: readonly ProductUnitRecord[];
   readonly pricing?: ProductPricing;
   readonly canWrite: boolean;
+  readonly canViewSolutions?: boolean;
   /** "sort" renders only the live roster with the move arrows - the 新建 page
    * mounts it beside the create form so a new product can be put in place. */
   readonly variant?: "full" | "sort";
@@ -95,13 +96,15 @@ export function ProductRoster({
   statuses,
   pricing,
   canWrite,
+  canViewSolutions = false,
   variant = "full",
   onMove,
   onStatus,
   onDelete,
 }: ProductRosterProps) {
-  const { CATALOG_ERROR, CATALOG_TEXT, DATA_TABLE_LABELS, ROW_OPS, TABLE_TOOLBAR_TEXT } =
+  const { CATALOG_ERROR, CATALOG_TEXT, DATA_TABLE_LABELS, ROW_OPS, TABLE_TOOLBAR_TEXT, PLANNING_WORKSPACE_TEXT: W, DOMAIN_LABEL } =
     useMessages();
+  const router = useRouter();
   const params = useSearchParams();
   const [editingPrice, setEditingPrice] = useState<string | null>(null);
   const historyId = params.get("priceHistory");
@@ -404,6 +407,10 @@ export function ProductRoster({
     <>
       <ModuleHeadline moduleKey="catalog" help={CATALOG_TEXT.rosterLiveWhy}
         description={<ProductModuleSummary input={[products,statuses,priceByProduct,!!summaryReads?.statuses,!!summaryReads?.prices && !!summaryReads?.policy]}/>}
+        pageActions={{more:canWrite||canViewSolutions?<RowActions label={W.pageActions(DOMAIN_LABEL.catalog)} items={[
+          ...(canViewSolutions?[{id:"solutions",label:DOMAIN_LABEL.solution,icon:"puzzle" as const,onSelect:()=>router.push("/solution")}]:[]),
+          ...(canWrite?[{id:"settings",label:W.systemSettings,icon:"settings" as const,separatorBefore:canViewSolutions,onSelect:()=>router.push("/admin/product")}]:[]),
+        ]}/>:undefined}}
         create={canWrite ? { href: "/catalog/new", label: CATALOG_TEXT.newProduct } : undefined} />
       <CollectionToolbar
         id="products"
@@ -414,9 +421,9 @@ export function ProductRoster({
         notice={selectedProducts.length ? <span className="text-body-small text-muted-foreground" role="status">{TABLE_TOOLBAR_TEXT.selectedRecords(selectedProducts.length)}</span> : undefined}
         actions={pricing ? <>
           {selectedProducts.length ? <Button size="xl" variant="ghost" onClick={() => changeSelection([])}>{TABLE_TOOLBAR_TEXT.clearSelection}</Button> : null}
-          <Button size="xl" variant="outline" className="px-md" onClick={() => openHistory("all")}>
-          <Icon name="clock-counter-clockwise" size="sm" aria-hidden="true" />{CATALOG_TEXT.priceHistory}
-        </Button></> : undefined}
+          <RowActions label={W.listActions(CATALOG_TEXT.productRoster)} items={[
+            {id:"price-history",label:CATALOG_TEXT.priceHistory,icon:"clock-counter-clockwise",onSelect:()=>openHistory("all")},
+          ]}/></> : undefined}
         search={
           <SearchSlot>
             <Input

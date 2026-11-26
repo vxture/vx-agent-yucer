@@ -4,8 +4,9 @@ import { strategyAdoptionStatus } from "../../domains/planning/strategy-adoption
 import type { ProductRecord, ProductStatusRecord } from "../../domains/catalog/store";
 import type { SolutionFacts } from "./solution-prices";
 import type { StrategyAdoptionRead } from "./strategy-adoption-read";
+import { pendingStrategyPlans } from "./strategy-operations";
 
-type SummaryStrategy = Pick<StrategyView, "id" | "lineageId" | "versionNo" | "status" | "period">;
+type SummaryStrategy = Pick<StrategyView, "id" | "lineageId" | "basePlanId" | "versionNo" | "status" | "period">;
 type SummaryMarket = Pick<MarketView, "status" | "customers" | "solutionIds" | "productIds">;
 type SummaryProduct = Pick<ProductRecord, "id" | "statusId">;
 
@@ -14,7 +15,7 @@ export function strategyModuleSummary(plans: readonly SummaryStrategy[] | null, 
   const current = currentStrategyPlans(plans).filter(p => (!period || p.period === period) && !["closed", "archived"].includes(p.status));
   const published = current.filter(p => p.versionNo != null);
   const active = current.filter(p => p.status === "active").length;
-  const draft = plans.filter(p => p.status === "draft" && (!period || p.period === period)).length;
+  const draft = pendingStrategyPlans(plans).filter(p => !period || p.period === period).length;
   const accepted = adoption.state === "ready" ? published.filter(p => strategyAdoptionStatus(p, adoption.rows) === "accepted").length : null;
   return { active, published: published.length, accepted, draft };
 }
@@ -44,6 +45,6 @@ export function productModuleSummary(products: readonly SummaryProduct[], status
   const codes = new Map(statuses.map(s => [s.id, s.statusCode]));
   if (!statusReady || products.some(p => !codes.has(p.statusId))) return null;
   const active = products.filter(p => codes.get(p.statusId) === "active");
-  return { active: active.length, development: products.filter(p => codes.get(p.statusId) === "in_development").length,
+  return { total: products.length, active: active.length, development: products.filter(p => codes.get(p.statusId) === "in_development").length,
     priced: pricingReady ? active.filter(p => currentPrices.has(p.id)).length : null };
 }

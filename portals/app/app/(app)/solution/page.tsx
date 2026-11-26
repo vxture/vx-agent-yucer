@@ -62,6 +62,7 @@ export default async function SolutionPage({ searchParams }: {
             types={types}
             currency={policy.defaultCurrency}
             canWrite={canWrite}
+            canConfigureProducts={can(authz, entitlement, "catalog.product.upsert", "ui").allowed}
             onMove={moveSolutionRow}
             onStatus={changeSolutionStatus}
             onDelete={deleteSolution}
