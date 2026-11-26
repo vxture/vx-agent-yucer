@@ -174,10 +174,10 @@
 }
 
 .resources {
-  container: strategy-resources / inline-size;
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  align-items: stretch;
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
   gap: var(--space-sm);
 }
 
@@ -191,24 +191,30 @@
 }
 
 .resource {
-  --resource-accent: var(--primary-text);
-  display: grid;
+  display: inline-flex;
   min-width: 0;
-  grid-template-columns: max-content minmax(0, 1fr);
-  align-items: center;
-  gap: var(--space-sm);
-  padding: var(--space-xs) var(--space-sm);
-  border: 1px solid color-mix(in srgb, var(--resource-accent) 16%, transparent);
+  max-width: 100%;
+  width: max-content;
+  align-items: stretch;
+  overflow: hidden;
   border-radius: var(--radius-md);
-  background: color-mix(in srgb, var(--resource-accent) 5%, var(--card));
 }
 
-.resource[data-strategy-resource="funds"] { --resource-accent: var(--success-text); }
-.resource[data-strategy-resource="technology"] { --resource-accent: var(--info-text); }
-.resourceIcon { flex-shrink: 0; color: var(--resource-accent); }
-.resource > dt { display: flex; min-width: 0; align-items: center; gap: var(--space-xs); }
+.resource > dt {
+  display: flex;
+  flex-shrink: 0;
+  min-height: var(--space-control-md);
+  align-items: center;
+  gap: var(--space-xs);
+  padding-inline: var(--space-xs);
+}
 .resource > dd, .metric > dd { display: flex; min-width: 0; overflow-wrap: anywhere; }
-.resource > dd { min-height: var(--body-line-height); align-items: center; justify-content: flex-end; }
+.resource > dd {
+  min-height: var(--space-control-md);
+  align-items: center;
+  padding-inline: var(--space-xs);
+}
+.resource :global([data-quantity-unit]) { color: var(--foreground); }
 .metric { grid-template-columns: max-content minmax(0, 1fr); }
 
 .metrics {
@@ -226,11 +232,6 @@
   .metric { grid-template-columns: minmax(0, 1fr); }
 }
 
-@container strategy-resources (max-width: 40rem) {
-  .resource { grid-template-columns: minmax(0, 1fr); gap: var(--space-xs); }
-  .resource > dd { justify-content: flex-start; }
-}
-
 @container strategy-card (max-width: 40rem) {
   .body, .footer { grid-template-columns: minmax(0, 1fr); row-gap: var(--strategy-card-row-gap); }
   .outcome, .metrics { border-left: 0; border-top: 1px dashed var(--border); padding-left: 0; padding-top: var(--space-md); }
@@ -241,10 +242,7 @@
 :global(html:lang(en)) .metric { --strategy-summary-label-width: 9em; }
 
 @container strategy-card (max-width: 24rem) {
-  .resourceSection, .resources { grid-template-columns: minmax(0, 1fr); }
-  .resourceSection { align-items: start; }
-  .resource { grid-template-columns: max-content minmax(0, 1fr); }
-  .resource > dd { justify-content: flex-end; }
+  .resourceSection { grid-template-columns: minmax(0, 1fr); align-items: start; }
   .relation { grid-template-columns: minmax(0, 1fr); gap: var(--space-xs); }
 }
 
