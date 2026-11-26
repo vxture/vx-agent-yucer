@@ -2,8 +2,9 @@
 
 状态：2026-11-19（America/Los_Angeles）完成设计规划，DD-01/02 已合并，DD-03 实现与本地验证完成（PR #701）；
 实现及验证状态见批次台账，不代表四板块全部完成或上线。运行基线 v0.1.120。
-2026-11-26 补充：v0.1.146 后的精细化批次148已完成 DO-01–DO-06 实施和本地联调，
-DO-07集中验证与 DO-08统一发布进行中；未将本地预览称为上线。
+2026-11-26 补充：v0.1.146 后的精细化批次148已完成 DO-00–DO-08；
+v0.1.147／d1754efb已由owner批准上线，50项本地浏览器与29项真实只读验收通过。
+本地、CI及生产证据和验收边界见[批次148](../70-workplan/148-deployment-domain-refinement.md)。
 本次标题概要及操作层级见第13–14节，取代旧节中相冲突的操作排列，不改写既有业务规则。
 权威：[作战部署规格](../20-specs/36-deployment-workspace.md)、[销售规划规则](../20-specs/35-sales-planning.md)。
 跟踪：[#697](https://github.com/vxture/vx-agent-yucer/issues/697)，批次：[DD-00–DD-06](../70-workplan/100-deployment-workspace.md)。
