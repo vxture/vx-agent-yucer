@@ -89,7 +89,7 @@ export function StrategyCharterCard({plan:p,currency,actions,draftAvailable}: {
           <div className="flex flex-wrap items-center gap-sm" data-strategy-card-title>
             <h3 className="text-heading-1 leading-snug text-foreground"><Link href={href} className="break-words transition-colors hover:text-primary-text focus-visible:text-primary-text">{p.name}</Link></h3>
             {p.strategyType ? <Tag><span title={p.strategyType.description || undefined}>{p.strategyType.name}</span></Tag>:null}
-            {valueProposition ? <Tag><span title={`${R.value}: ${valueProposition.name}`}>{valueProposition.name}</span></Tag>:null}
+            {valueProposition ? <Tag className="min-w-0 max-w-full"><span className="truncate" title={`${R.value}: ${valueProposition.name}`}>{valueProposition.name}</span></Tag>:null}
             <Tag tone={p.status==="active"?"success":"neutral"}>{PLAN_STATUS_LABEL[p.status]}{p.versionNo ? ` V${p.versionNo}` : p.basePlanId ? ` / ${T.revisionDraft}` : ""}</Tag>
             {draftAvailable ? <Tag>{T.draftAvailable}</Tag>:null}
           </div>
