@@ -95,11 +95,17 @@
 }
 
 .relation > :first-child, .goal > dt { display: flex; min-width: 0; align-items: start; }
-.references { display: flex; min-width: 0; flex-wrap: wrap; align-items: start; column-gap: var(--space-md); row-gap: var(--space-sm); }
+.references { position: relative; display: flex; min-width: 0; align-items: start; column-gap: var(--space-md); overflow: hidden; }
 .referenceItem { display: inline-flex; min-width: 0; max-width: 100%; align-items: start; gap: var(--space-xs); font: inherit; }
 .referenceItem > svg { margin-top: calc((1lh - var(--spacing-icon-sm)) / 2); }
-.referenceItem > span { min-width: 0; overflow-wrap: anywhere; }
-.moreReferences { white-space: nowrap; }
+.referenceItem > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.moreReferences { flex: none; white-space: nowrap; }
+.referenceMeasure { position: absolute; visibility: hidden; pointer-events: none; display: flex; width: max-content; max-width: none; }
+.referenceMeasure .referenceItem { flex: none; max-width: none; }
+.marketSummary { display: flex; min-width: 0; align-items: start; gap: var(--space-md); }
+.sizeSummary { flex: 0 1 auto; min-width: 0; max-width: 45%; }
+.segmentSummary { flex: 1 1 0; min-width: 0; }
+.segmentDivider { border-left: 1px solid var(--border); padding-left: var(--space-md); }
 .referencePreview {
   width: var(--container-overlay-xl);
   max-width: calc(100vw - 2 * var(--space-md));

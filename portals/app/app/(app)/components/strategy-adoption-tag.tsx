@@ -1,0 +1,26 @@
+"use client";
+
+import { Tooltip, TooltipContent, TooltipTrigger } from "@vxture/design-ui";
+import { Tag } from "./tag";
+import { useMessages } from "../lib/i18n/provider";
+import type { StrategyAdoptionRead } from "../lib/strategy-adoption-read";
+import { strategyAdoptionStatus } from "../../domains/planning/strategy-adoption";
+import type { StrategyView } from "../lib/market-strategy";
+
+export function StrategyAdoptionTag({ plan, adoption }: { readonly plan: StrategyView; readonly adoption: StrategyAdoptionRead }) {
+  const { STRATEGY_CARD_TEXT: T } = useMessages();
+  const state = adoption.state === "ready" ? strategyAdoptionStatus(plan, adoption.rows) : adoption.state;
+  const rows = adoption.state === "ready" ? adoption.rows.filter(r => r.lineageId === (plan.lineageId ?? plan.id)) : [];
+  const tone = state === "accepted" ? "success" : ["pending", "previous"].includes(state) ? "warning" : "neutral";
+  return <Tooltip>
+    <TooltipTrigger asChild><span tabIndex={0} className="inline-flex min-w-0 max-w-full" data-strategy-adoption={state}>
+      <Tag tone={tone}>{T.adoption[state]}</Tag>
+    </span></TooltipTrigger>
+    <TooltipContent className="max-w-xs">
+      <p>{T.adoptionHint[state]}</p>
+      {rows.map(r => <p key={`${r.revisionId}:${r.strategyId}`} className="text-body-small">
+        {r.year} {T.companyPlan}{r.planVersion ? ` V${r.planVersion}` : ""}{" / "}{T.strategyVersion} V{r.strategyVersion}{" / "}{T.planState[r.state]}
+      </p>)}
+    </TooltipContent>
+  </Tooltip>;
+}

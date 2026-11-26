@@ -982,7 +982,7 @@ export const en: Dictionary = {
   },
 
   DOMAIN_LABEL: {
-    strategyConfig: "Strategy options",
+    strategyConfig: "Strategy settings",
     national: "Sales screen",
     strategy: "Market strategy",
     planning: "Sales planning",
@@ -8527,6 +8527,43 @@ export const en: Dictionary = {
     openCustomer: "View customer",
     coverageHelp: "Matched customers meet the current criteria. Assigned customers explicitly belong to this segment and remain visible if criteria change. Incomplete records lack information needed for matching. These counts may overlap and must not be added. Without criteria, customers are not automatically matched.",
   },
+  STRATEGY_CARD_TEXT: {
+  "systemSettings": "System settings",
+  "customerSizes": "Customer sizes",
+  "segments": "Market segments",
+  "valueUnspecified": "Value proposition not set",
+  "valueUnavailable": "Value proposition needs review",
+  "companyPlan": "Sales plan",
+  "strategyVersion": "Strategy",
+  "adoption": {
+    "accepted": "Sales plan linked",
+    "scheduled": "Sales plan scheduled",
+    "draft": "Handoff in draft",
+    "previous": "Earlier version linked",
+    "unpublished": "Publish before handoff",
+    "closed": "Linked plan ended",
+    "pending": "Sales handoff pending",
+    "restricted": "Handoff status restricted",
+    "unavailable": "Handoff status unavailable"
+  },
+  "adoptionHint": {
+    "accepted": "At least one objective from this version is included in an effective company sales plan. This does not imply all objectives are accepted.",
+    "scheduled": "At least one objective is included in a published company sales plan that is not effective yet.",
+    "draft": "This version is accepted only in an unpublished sales-plan draft.",
+    "previous": "Sales planning still accepts a different published version of this strategy. This version is not in an effective plan.",
+    "unpublished": "Sales planning can only accept published strategies.",
+    "closed": "The sales plan accepting this version has ended.",
+    "pending": "This version has no handoff in an effective or scheduled sales plan, or in a draft you can view.",
+    "restricted": "Your permissions or data scope do not allow this status to be read. This does not mean there is no handoff.",
+    "unavailable": "Sales planning is temporarily unavailable, so handoff status cannot be determined."
+  },
+  "planState": {
+    "current": "Effective",
+    "scheduled": "Scheduled",
+    "draft": "Unpublished draft",
+    "closed": "Ended"
+  }
+},
   MARKET_STRATEGY_TEXT: {
   viewDraft: "View draft",
   noPublishedPlans: "No published strategies",
@@ -8551,8 +8588,8 @@ export const en: Dictionary = {
   strategyType: "Strategy type",
   typeUnclassified: "Unclassified",
   typeSelect: "Select strategy type",
-  typeConfig: "Strategy options",
-  typeHelp: "Types express growth intent. Manage them in strategy options; publications retain their original type and visual.",
+  typeConfig: "Strategy settings",
+  typeHelp: "Types express growth intent. Manage them in strategy settings; publications retain their original type and visual.",
   typeConfigHelp: "Manage strategy types, descriptions and background themes. Value propositions and implementation paths have separate sections below. Disabled options cannot be newly selected; existing publications remain intact.",
   typeName: "Type name",
   typeCode: "Type code",

@@ -7,7 +7,7 @@ import { StrategyDetailBasic, StrategyDetailGoals, StrategyDetailMarkets, Strate
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useTransition } from "react";
-import { Button, Card, CardContent, CardHeader, CardTitle, Drawer, EmptyState, FieldError, Icon, Input, NativeSelect, SegmentedControl, ViewLayout, useToast, type ActionMenuItem } from "@vxture/design-ui";
+import { Button, Card, CardContent, CardHeader, CardTitle, Drawer, EmptyState, FieldError, Icon, Input, NativeSelect, ViewLayout, useToast, type ActionMenuItem } from "@vxture/design-ui";
 import { ViewHeader } from "./business-controls";
 import { TitleHelp } from "./title-help";
 import { FilterSlot, RowActions, SearchSlot, useTableSort } from "./table-fittings";
@@ -35,7 +35,7 @@ import { movePlan, startStrategyRevision, publishStrategyVersion, discardStrateg
 
 export type StrategyTab = "overview" | "validation";
 export function StrategyWorkspace({ data, view, detailId }: { readonly data: StrategyWorkspaceData; readonly view: StrategyTab; readonly detailId?: string }) {
-  const { STRATEGY_DETAIL_TEXT:D, MARKET_STRATEGY_TEXT: T, PLAN_STATUS_LABEL, PLAN_ERROR, DS_LABELS, DATA_TABLE_LABELS, CAMPAIGN_TEXT } = useMessages();
+  const { STRATEGY_DETAIL_TEXT:D, MARKET_STRATEGY_TEXT: T, STRATEGY_CARD_TEXT: C, PLAN_STATUS_LABEL, PLAN_ERROR, DS_LABELS, DATA_TABLE_LABELS, CAMPAIGN_TEXT } = useMessages();
   const locale=useLocale();
   const router=useRouter(), params=useSearchParams();
   const [layout,setLayout]=useCollectionView("cards");
@@ -126,9 +126,8 @@ export function StrategyWorkspace({ data, view, detailId }: { readonly data: Str
   const versionBadge=(p:StrategyView)=><>{p.versionNo ? <Tag>{`V${p.versionNo}`}</Tag> : p.basePlanId ? <Tag>{T.revisionDraft}</Tag>:null}</>;
   const number=(n:number|null|undefined,unit:string)=><StrategyQuantity value={n==null ? T.unknown:n.toLocaleString(locale)} unit={n==null?undefined:unit}/>;
   const money=(n:number,currency:string)=><StrategyQuantity value={n.toLocaleString(locale,{maximumFractionDigits:0})} unit={currency}/>;
-  const cardActions=(p:StrategyView)=>{const {primary}=operations(p);return <div className="flex items-center gap-sm">
-    {primaryAction(p,primary)}<RowActions label={T.planActions} items={items(p,primary?[primary]:[])} disabled={pending}/></div>;};
-  const card = (p: StrategyView) => <StrategyCharterCard key={p.id} plan={p} currency={data.currency} actions={cardActions(p)} draftAvailable={!!draftFor(p) && p.status!=="draft"}/>;
+  const cardActions=(p:StrategyView)=><RowActions label={T.planActions} items={items(p)} disabled={pending}/>;
+  const card = (p: StrategyView) => <StrategyCharterCard key={p.id} plan={p} currency={data.currency} actions={cardActions(p)} adoption={data.adoptions} draftAvailable={!!draftFor(p) && p.status!=="draft"}/>;
   const planTitle=(p:StrategyView)=><Link href={`/strategy/${p.id}`} className="block truncate transition-colors hover:text-primary-text">{p.name}</Link>;
   const planCode=(p:StrategyView)=>[p.planNo,strategyPeriodLabel(p.period),p.versionNo ? `V${p.versionNo}` : null].filter(Boolean).join(" \u00b7 ");
   const table=(rows:StrategyView[])=><CollectionTable labels={DATA_TABLE_LABELS} rows={[...sorted.sortRows(rows)]} sort={sorted.sort} onSortChange={sorted.onSortChange} rowKey={p=>p.id} indexStart={1} columns={[
@@ -163,12 +162,15 @@ export function StrategyWorkspace({ data, view, detailId }: { readonly data: Str
         {p.results?.some(r=>r.unpriced>0)?<p>{p.results.reduce((n,r)=>n+r.unpriced,0)} {T.unpriced}</p>:null}
       </div>)}
   </> : undefined;
-  const viewActions = allowedView ? <SegmentedControl<StrategyTab> value={view} onChange={switchView} ariaLabel={T.strategy}
-    items={views.filter(v=>v.allowed).map(v=>({value:v.id,label:v.label,icon:v.icon,disabled:pending}))}/> : null;
   const visiblePlanAdvice=data.planAdvice.filter(a=>!detailId || a.planId===detailId);
   const visibleSegmentAdvice=data.segmentAdvice.filter(a=>!detailId || detail?.marketIds?.includes(a.segmentId));
   const checkCount = (data.canPlan ? visiblePlanAdvice.length : 0) + (data.canMarkets ? visibleSegmentAdvice.length : 0);
   const checkButton = <PageActionButton onClick={() => setChecks(true)}>{T.checks}<span className="text-muted-foreground tabular-nums">{checkCount}</span></PageActionButton>;
+  const workspaceItems: ActionMenuItem[] = [
+    ...views.filter(v=>v.allowed && v.id!==view).map(v=>({id:v.id,label:v.label,icon:v.icon,onSelect:()=>switchView(v.id)})),
+    ...(data.canPlan || data.canMarkets ? [{id:"checks",label:`${T.checks} ${checkCount}`,icon:"list-checks" as const,onSelect:()=>setChecks(true)}]:[]),
+    ...(data.canConfigure ? [{id:"settings",label:C.systemSettings,icon:"settings" as const,onSelect:()=>router.push("/admin/strategy")}]:[]),
+  ];
   const periodFilter = <FilterSlot><NativeSelect aria-label={T.period} value={period} onChange={e=>setPeriod(e.target.value)}><option value="">{T.allPeriods}</option>{[...new Set(data.plans?.map(p=>p.period))].map(p=><option key={p} value={p}>{strategyPeriodLabel(p)}</option>)}</NativeSelect></FilterSlot>;
   const validationPlanFilter=<FilterSlot width="w-48 max-w-full"><NativeSelect aria-label={T.strategy} value={planFilter} onChange={e=>{
     const q=new URLSearchParams(params);if(e.target.value)q.set("plan",e.target.value);else q.delete("plan");
@@ -176,7 +178,7 @@ export function StrategyWorkspace({ data, view, detailId }: { readonly data: Str
   }}><option value="">{T.allPlans}</option>{data.plans?.filter(p=>p.versionNo != null && (!period || p.period===period)).map(p=><option key={p.id} value={p.id}>{p.name}{` \u00b7 V${p.versionNo}`}</option>)}</NativeSelect></FilterSlot>;
   const overview=<>
     <CollectionToolbar title={activeView.label} icon={activeView.icon} mode={{value:layout,onChange:setLayout}}
-      count={plans.length} actions={checkButton}
+      count={plans.length}
       search={<SearchSlot><Input type="search" aria-label={T.searchPlans} placeholder={T.searchPlans} value={query} onChange={e=>setQuery(e.target.value)}/></SearchSlot>}
       onReset={query||period?()=>{setQuery("");setPeriod("");}:undefined}>
       {periodFilter}
@@ -218,7 +220,7 @@ export function StrategyWorkspace({ data, view, detailId }: { readonly data: Str
     const filtered = !!(period || planFilter);
     return <EmptyState title={filtered ? T.noMatches : T.noPublishedPlans} description={filtered ? undefined : T.noPublishedPlansHint}/>;
   };
-  const createAction = data.canCreate && view==="overview" ? {href:"/strategy/new",label:T.newPlan} : undefined;
+  const createAction = data.canCreate ? {href:"/strategy/new",label:T.newPlan} : undefined;
   const detailOperations=detail?operations(detail):null;
   const detailPrimary=detailOperations?.detailPrimary;
   const detailEdit=detailOperations?.actions.includes("edit") && detailPrimary!=="edit";
@@ -242,10 +244,9 @@ export function StrategyWorkspace({ data, view, detailId }: { readonly data: Str
       <StrategyDetailBasic plan={detail}/>
       </div></> : <ModuleHeadline moduleKey="strategy" help={T.brief} create={createAction}
         pageActions={{
-          view: viewActions,
-          more: data.canConfigure ? <RowActions label={T.workspaceActions} items={[{id:"settings",label:T.typeConfig,icon:"settings",onSelect:()=>router.push("/admin/strategy")}]} /> : undefined,
+          more: workspaceItems.length ? <RowActions label={T.workspaceActions} items={workspaceItems} disabled={pending}/> : undefined,
         }} />}
-    {!detail && view==="validation" ? <CollectionToolbar title={activeView.label} icon={activeView.icon} help={resultHelp} count={plans.length} actions={checkButton}>
+    {!detail && view==="validation" ? <CollectionToolbar title={activeView.label} icon={activeView.icon} help={resultHelp} count={plans.length}>
       {periodFilter}{validationPlanFilter}
     </CollectionToolbar> : null}
     {workspaceContent()}

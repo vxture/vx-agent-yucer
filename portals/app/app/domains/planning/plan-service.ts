@@ -1,4 +1,5 @@
 import { planningYearOption } from "./plan-years";
+import { strategyAdoptions } from "./strategy-adoption";
 import { allocateStrategicTarget } from "./strategy-autofill";
 import { verifyStrategyAcceptance } from "./strategy-handoff";
 import type { StrategyStore } from "../strategy/store";
@@ -86,6 +87,18 @@ export async function readSalesPlan(ctx: SalesPlanContext, year: number) {
   const plan = await ctx.store.read(ctx.workspaceId, year);
   for (const r of plan?.revisions ?? []) sourceGate(ctx, r.content);
   return plan;
+}
+
+/** Read the minimal handoff projection through the same planning/source gates. */
+export async function listStrategyAdoptions(ctx: SalesPlanContext) {
+  gate(ctx, false);
+  demand(can(ctx.holder, ctx.entitlement, "strategy.plan.view", "data").allowed, "strategy_source_permission");
+  const plans = await ctx.store.list(ctx.workspaceId);
+  for (const plan of plans) {
+    for (const revision of plan.revisions) sourceGate(ctx, revision.content);
+  }
+  const editable = can(ctx.holder, ctx.entitlement, "planning.target.update", "data").allowed;
+  return strategyAdoptions(plans, (ctx.now?.() ?? new Date()).toISOString(), editable);
 }
 export async function changeSalesPlan(
   ctx: SalesPlanContext,

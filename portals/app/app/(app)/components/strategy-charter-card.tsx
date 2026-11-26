@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { StrategyInfoCard as Card, StrategyInfoContent as CardContent } from "./strategy-info-card";
 import type { ReactNode } from "react";
-import { HoverCard, HoverCardContent, HoverCardTrigger, Icon, type IconName } from "@vxture/design-ui";
+import { Icon, type IconName } from "@vxture/design-ui";
 import { StrategyDetailLabel, StrategyQuantity } from "./strategy-detail-label";
 import { Tag } from "./tag";
 import { MemberName } from "../lib/member-names";
@@ -12,6 +12,9 @@ import { strategyPeriodLabel, strategyPeriodRangeLabel } from "../../domains/str
 import type { StrategyTheme } from "../../domains/strategy/lib/strategy-type";
 import type { StrategyView } from "../lib/market-strategy";
 import { strategyOfferings } from "../lib/strategy-offerings";
+import { StrategyReferenceSummary } from "./strategy-reference-summary";
+import { StrategyAdoptionTag } from "./strategy-adoption-tag";
+import type { StrategyAdoptionRead } from "../lib/strategy-adoption-read";
 import styles from "./strategy-charter-card.module.css";
 
 const looks: Record<StrategyTheme | "corporate", {icon: IconName; color: string}> = {
@@ -23,19 +26,10 @@ const looks: Record<StrategyTheme | "corporate", {icon: IconName; color: string}
   corporate:{icon:"flag",color:"text-primary-text"},
 };
 
-type StrategyReference = {id:string;name:string;href:string;icon?:IconName};
-
-function referenceLink(row: StrategyReference, preview = false) {
-  return <Link key={`${row.icon ?? "market"}:${row.id}`} href={row.href} className={`${styles.referenceItem} transition-colors hover:text-primary-text focus-visible:text-primary-text`} title={row.name}>
-    {row.icon ? <Icon name={row.icon} size="sm" className="shrink-0 text-muted-foreground" aria-hidden="true"/>:null}
-    <span className={preview ? "truncate" : undefined}>{row.name}</span>
-  </Link>;
-}
-
-export function StrategyCharterCard({plan:p,currency,actions,draftAvailable}: {
-  readonly plan: StrategyView; readonly currency: string; readonly actions: ReactNode; readonly draftAvailable: boolean;
+export function StrategyCharterCard({plan:p,currency,actions,draftAvailable,adoption}: {
+  readonly plan: StrategyView; readonly currency: string; readonly actions: ReactNode; readonly draftAvailable: boolean; readonly adoption: StrategyAdoptionRead;
 }) {
-  const { STRATEGY_HANDOFF_TEXT:H, STRATEGY_RESULT_TEXT:R, MARKET_STRATEGY_TEXT:T, STRATEGY_DETAIL_TEXT:D, PLAN_STATUS_LABEL }=useMessages();
+  const { STRATEGY_CARD_TEXT:C, STRATEGY_HANDOFF_TEXT:H, STRATEGY_RESULT_TEXT:R, MARKET_STRATEGY_TEXT:T, STRATEGY_DETAIL_TEXT:D, PLAN_STATUS_LABEL }=useMessages();
   const locale=useLocale();
   const theme=p.strategyType?.theme ?? "corporate";
   const look=looks[theme] ?? looks.corporate;
@@ -43,6 +37,7 @@ export function StrategyCharterCard({plan:p,currency,actions,draftAvailable}: {
   const markets=p.targetMarkets?.toSorted((a,b)=>Number(b.intent==="focus")-Number(a.intent==="focus"));
   const offerings=p.solutions===null || p.products===null ? null : strategyOfferings(p.solutions,p.products);
 
+  const sizes=[...new Set(markets?.flatMap(m=>m.criteria.sizes ?? []) ?? [])];
   const valueProposition=p.resultOptions?.find(o=>o.kind==="value" && o.id===p.result?.valuePropositionId);
   const resources=[
     {key:"people",label:R.people,unit:R.peopleUnit},
@@ -65,20 +60,6 @@ export function StrategyCharterCard({plan:p,currency,actions,draftAvailable}: {
     {key:"customers",label:T.customerCount,unit:D.customerUnit,value:p.customerCount},
     {key:"campaigns",label:T.campaignCount,unit:D.campaignUnit,value:p.campaigns?.length},
   ] as const;
-  const relation=(kind:"markets"|"offerings",title:string,rows:readonly StrategyReference[] | null | undefined,empty:string)=>
-    <div className={styles.relation} data-strategy-card-relation={kind}>
-      <StrategyDetailLabel>{title}</StrategyDetailLabel>
-      <div className={styles.references} data-reference-count={Math.min(rows?.length ?? 0,2)}>
-        {rows?.slice(0,2).map(row=>referenceLink(row))}
-        {rows && rows.length>2 ? <HoverCard openDelay={180} closeDelay={180}>
-          <HoverCardTrigger asChild><Link href={href} className={`${styles.moreReferences} text-primary-text tabular-nums`} aria-label={`${title} +${rows.length-2}`} data-strategy-reference-overflow={kind}>+{rows.length-2}</Link></HoverCardTrigger>
-          <HoverCardContent align="start" side="bottom" className={styles.referencePreview} aria-label={title} data-strategy-reference-preview={kind}>
-            <ul className={styles.referenceList}>{rows.slice(2).map(row=><li key={`${row.icon ?? "market"}:${row.id}`}>{referenceLink(row,true)}</li>)}</ul>
-          </HoverCardContent>
-        </HoverCard>:null}
-        {!rows?.length ? <span className={`${styles.referenceText} text-muted-foreground`}>{rows===null?T.unknown:empty}</span>:null}
-      </div>
-    </div>;
   return <Card variant="overview" className={`${styles.charter} ${look.color}`} surface="soft" data-strategy-card data-strategy-theme={theme}>
     <div className={styles.ambience} aria-hidden="true"/>
     <div className={styles.illustration} style={{maskImage:`url(/assets/strategy/${theme}.svg)`}} aria-hidden="true"/>
@@ -88,9 +69,10 @@ export function StrategyCharterCard({plan:p,currency,actions,draftAvailable}: {
         <div className="flex min-w-0 flex-col gap-sm">
           <div className="flex flex-wrap items-center gap-sm" data-strategy-card-title>
             <h3 className="text-heading-1 leading-snug text-foreground"><Link href={href} className="break-words transition-colors hover:text-primary-text focus-visible:text-primary-text">{p.name}</Link></h3>
-            {p.strategyType ? <Tag><span title={p.strategyType.description || undefined}>{p.strategyType.name}</span></Tag>:null}
-            {valueProposition ? <Tag className="min-w-0 max-w-full"><span className="truncate" title={`${R.value}: ${valueProposition.name}`}>{valueProposition.name}</span></Tag>:null}
+            <Tag><span className={!p.strategyType?"text-muted-foreground":undefined} title={`${T.strategyType}: ${p.strategyType?.description || p.strategyType?.name || T.typeUnclassified}`} data-strategy-type>{p.strategyType?.name || T.typeUnclassified}</span></Tag>
+            <Tag className="min-w-0 max-w-full"><span className={`truncate ${valueProposition?"":"text-muted-foreground"}`} title={`${R.value}: ${valueProposition?.name || (p.result?.valuePropositionId?C.valueUnavailable:C.valueUnspecified)}`} data-strategy-value>{valueProposition?.name || (p.result?.valuePropositionId?C.valueUnavailable:C.valueUnspecified)}</span></Tag>
             <Tag tone={p.status==="active"?"success":"neutral"}>{PLAN_STATUS_LABEL[p.status]}{p.versionNo ? ` V${p.versionNo}` : p.basePlanId ? ` / ${T.revisionDraft}` : ""}</Tag>
+            <StrategyAdoptionTag plan={p} adoption={adoption}/>
             {draftAvailable ? <Tag>{T.draftAvailable}</Tag>:null}
           </div>
           <div className="flex flex-wrap items-center gap-x-lg gap-y-xs text-body-small text-muted-foreground" data-strategy-card-meta>
@@ -114,8 +96,21 @@ export function StrategyCharterCard({plan:p,currency,actions,draftAvailable}: {
               <p title={p.objective || undefined} className={`${styles.objective} ${styles.referenceText} ${p.objective?"text-foreground":"text-muted-foreground"}`}>{p.objective || T.directionEmpty}</p>
             </div>
           </div>
-          {relation("markets",T.targetMarketsTitle,markets?.map(m=>({id:m.segmentId,name:m.marketName,icon:"globe",href:`/segment/${encodeURIComponent(m.segmentId)}`})),T.marketEmpty)}
-          {relation("offerings",T.productSolutionsTitle,offerings,T.offeringEmpty)}
+          <div className={styles.relation} data-strategy-card-relation="markets">
+            <StrategyDetailLabel>{T.targetMarketsTitle}</StrategyDetailLabel>
+            <div className={styles.marketSummary}>
+              {sizes.length ? <div className={styles.sizeSummary}><StrategyReferenceSummary kind="sizes" label={C.customerSizes} href={href} rows={sizes.map(name=>({id:name,name}))} maxVisible={2}/></div>:null}
+              <div className={`${styles.segmentSummary} ${sizes.length?styles.segmentDivider:""}`}>
+                {markets?.length ? <StrategyReferenceSummary kind="markets" label={C.segments} href={href} rows={markets.map(m=>({id:m.segmentId,name:m.marketName,icon:"globe",href:`/segment/${encodeURIComponent(m.segmentId)}`}))} maxVisible={1}/>
+                  : <span className="text-muted-foreground">{markets===null?T.unknown:T.marketEmpty}</span>}
+              </div>
+            </div>
+          </div>
+          <div className={styles.relation} data-strategy-card-relation="offerings">
+            <StrategyDetailLabel>{T.productSolutionsTitle}</StrategyDetailLabel>
+            {offerings?.length ? <StrategyReferenceSummary kind="offerings" label={T.productSolutionsTitle} href={href} rows={offerings.map(row=>({...row,id:row.key}))}/>
+              : <span className="text-muted-foreground">{offerings===null?T.unknown:T.offeringEmpty}</span>}
+          </div>
         </div>
         <div className={styles.outcome} data-strategy-expectation-summary>
           <dl className={styles.goals}>
@@ -138,7 +133,7 @@ export function StrategyCharterCard({plan:p,currency,actions,draftAvailable}: {
             const note=p.result?.resources[`${resource.key}Note`];
             return <div key={resource.key} className={styles.resource} title={note || undefined} data-strategy-resource={resource.key}>
               <dt><StrategyDetailLabel>{resource.label}</StrategyDetailLabel></dt>
-              <dd className="min-w-0 text-body font-medium tabular-nums text-foreground">{Number.isFinite(amount)?<StrategyQuantity value={amount.toLocaleString(locale,{maximumFractionDigits:2})} unit={resource.unit}/>:<span className="font-normal text-muted-foreground">{T.resourceUnspecified}</span>}</dd>
+              <dd className="min-w-0 text-body font-medium tabular-nums text-foreground">{Number.isFinite(amount)?<StrategyQuantity value={amount.toLocaleString(locale,{maximumFractionDigits:2})} unit={resource.unit}/>:<span className="text-body-small font-normal text-muted-foreground">{T.resourceUnspecified}</span>}</dd>
             </div>;
           })}
         </dl>

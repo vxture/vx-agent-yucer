@@ -1,4 +1,5 @@
 import { loadStrategyFulfillment } from "../lib/strategy-fulfillment";
+import { loadStrategyAdoptions } from "../lib/strategy-adoption-read";
 import { cache } from "react";
 import { resolveAppSession } from "../lib/session";
 import { can } from "../../authz/decide";
@@ -57,6 +58,7 @@ export const strategyWorkspaceData = cache(async () => {
   }) : [];
   return { session, plansRead: plans, marketsRead: segments, data: {
     currency:(await getCatalogStore().getPricingPolicy(session.workspaceId)).defaultCurrency,
+    adoptions: canPlan ? await loadStrategyAdoptions(session) : { state: "restricted" as const },
     fulfillment: canPlan ? await loadStrategyFulfillment(session) : null,
     plans: canPlan ? planRows : null, markets: canMarkets ? markets : null,
     productOptions: products?.ok ? products.value : null,
