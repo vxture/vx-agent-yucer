@@ -11,6 +11,7 @@ import { getCatalogStore, getStrategyStore } from "../../../domains/shared/regis
 import { listProductReferences, listSolutionReferences } from "../../../domains/catalog/service";
 import { listAccounts } from "../../../domains/account/service";
 import { marketViews } from "../../lib/market-strategy";
+import { strategyOperations } from "../../lib/strategy-operations";
 import { listPlans, listSegments } from "../../../domains/strategy/service";
 import { NewPlanForm } from "../../components/plan-form";
 import { assistStrategyDraft } from "./assist-action";
@@ -62,6 +63,7 @@ export default async function NewPlanPage({
   const found=candidate;
   if((no || id) && !found)notFound();
   if(found && found.status !== "draft")redirect(`/strategy/${found.id}`);
+  if(found && strategyOperations(found,rows,{canEdit:true,canApprove:false}).staleDraft)redirect(`/strategy/${found.id}`);
 
   // A settled plan is not editable - the service refuses it - so the form is
   // not offered for one either. Sending the reader back to the roster is the

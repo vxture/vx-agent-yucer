@@ -20,7 +20,7 @@ import { PageCrumbs } from "./page-crumbs";
 import { StrategyDetailLabel, StrategyQuantity } from "./strategy-detail-label";
 import { MemberName } from "../lib/member-names";
 import { useLocale, useMessages } from "../lib/i18n/provider";
-import { nextPlanStatuses } from "../../domains/strategy/lib/lifecycle";
+import { strategyOperations, type StrategyOperation } from "../lib/strategy-operations";
 import { PlanAdvicePanel } from "./plan-advice-panel";
 import { SegmentAdvicePanel } from "./segment-advice-panel";
 import { DialogForm } from "./dialog-form";
@@ -35,7 +35,7 @@ import { movePlan, startStrategyRevision, publishStrategyVersion, discardStrateg
 
 export type StrategyTab = "overview" | "validation";
 export function StrategyWorkspace({ data, view, detailId }: { readonly data: StrategyWorkspaceData; readonly view: StrategyTab; readonly detailId?: string }) {
-  const { STRATEGY_RESULT_TEXT:R, STRATEGY_DETAIL_TEXT:D, MARKET_STRATEGY_TEXT: T, PLAN_STATUS_LABEL, PLAN_ERROR, STRATEGY_TEXT, DATA_TABLE_LABELS, CAMPAIGN_TEXT } = useMessages();
+  const { STRATEGY_DETAIL_TEXT:D, MARKET_STRATEGY_TEXT: T, PLAN_STATUS_LABEL, PLAN_ERROR, DS_LABELS, DATA_TABLE_LABELS, CAMPAIGN_TEXT } = useMessages();
   const locale=useLocale();
   const router=useRouter(), params=useSearchParams();
   const [layout,setLayout]=useCollectionView("cards");
@@ -49,13 +49,15 @@ export function StrategyWorkspace({ data, view, detailId }: { readonly data: Str
   };
   const [checks,setChecks]=useState(false);
   const [versionPlan,setVersionPlan]=useState<StrategyView|null>(null);
-  const [publication,setPublication]=useState<{plan:StrategyView;discard?:boolean}|null>(null);
+  const [publication,setPublication]=useState<StrategyView|null>(null);
   const [publicationError,setPublicationError]=useState<string|null>(null);
+  const [activation,setActivation]=useState<StrategyView|null>(null);
+  const [activationError,setActivationError]=useState<string|null>(null);
   const [pending,start]=useTransition();
   const {toast}=useToast();
   const detail=data.plans?.find(p=>p.id===detailId);
   const planFilter=view==="validation" ? params.get("plan") ?? "" : "";
-  const scopedPlans=view==="overview"?currentStrategyPlans(data.plans ?? []):data.plans?.filter(p=>p.versionNo || !p.basePlanId) ?? [];
+  const scopedPlans=view==="overview"?currentStrategyPlans(data.plans ?? []):data.plans?.filter(p=>p.versionNo != null) ?? [];
   const plans=scopedPlans.filter(p=>(!planFilter || p.id===planFilter) && (!period || p.period===period) && (!query.trim() || `${p.name} ${p.planNo} ${(p.previousNumbers ?? []).join(" ")} ${p.objective ?? ""}`.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase())));
   const allowedView = data.canPlan;
   useXiaoyuPageState({query:query.slice(0,160),period,plan:planFilter,view:layout});
@@ -64,34 +66,69 @@ export function StrategyWorkspace({ data, view, detailId }: { readonly data: Str
     const q=new URLSearchParams(params);q.set("view",next);q.delete("market");q.delete("plan");
     start(()=>router.push(`/strategy?${q}`,{scroll:false}));
   };
-  const run=(id:string,to:string)=>start(async()=>{
-    try {const p=data.plans?.find(p=>p.id===id);const r=await movePlan(id,to,p?.editToken ?? 1);if(!r.ok)toast({tone:"danger",title:PLAN_ERROR[r.error ?? "denied"] ?? PLAN_ERROR.denied});else router.refresh();}
-    catch {toast({tone:"danger",title:PLAN_ERROR.denied});}
-  });
+  const run=async(p:StrategyView,to:string)=>{
+    let error:string|null=null;
+    try {const r=await movePlan(p.id,to,p.editToken ?? 1);if(!r.ok)error=PLAN_ERROR[r.error ?? "denied"] ?? PLAN_ERROR.denied;}
+    catch {error=PLAN_ERROR.denied;}
+    if(error){toast({tone:"danger",title:error});throw new Error(error);}
+    router.refresh();
+  };
   const family=(p:StrategyView)=>(data.plans ?? []).filter(row=>(row.lineageId ?? row.id)===(p.lineageId ?? p.id));
   const latest=(p:StrategyView)=>family(p).filter(row=>row.versionNo).sort((a,b)=>(b.versionNo ?? 0)-(a.versionNo ?? 0))[0];
   const draftFor=(p:StrategyView)=>family(p).find(row=>row.status==="draft");
   const isLatest=(p:StrategyView)=>latest(p)?.id===p.id;
+  const operations=(p:StrategyView)=>strategyOperations(p,data.plans ?? [],data);
   const revise=(p:StrategyView)=>start(async()=>{
     const existing=draftFor(p);if(existing){router.push(`/strategy/new?id=${encodeURIComponent(existing.id)}`);return;}
     try{const r=await startStrategyRevision(p.id);if(!r.ok || !r.id){toast({tone:"danger",title:PLAN_ERROR[r.error ?? "denied"] ?? PLAN_ERROR.denied});return;}
       router.push(`/strategy/new?id=${encodeURIComponent(r.id)}`);router.refresh();
     }catch{toast({tone:"danger",title:PLAN_ERROR.denied});}
   });
-  const openPublication=(plan:StrategyView,discard=false)=>{setPublicationError(null);setPublication({plan,discard});};
-  const items=(p:StrategyView):ActionMenuItem[]=>[
-    {id:"view",label:T.openPlan,onSelect:()=>router.push(`/strategy/${p.id}`)},
-    ...(data.canEdit && p.status === "draft" ? [{id:"edit",label:T.editPlan,onSelect:()=>router.push(`/strategy/new?id=${encodeURIComponent(p.id)}`)}]:[]),
-    ...(data.canEdit && p.versionNo && isLatest(p) && ["approved","active"].includes(p.status) ? [{id:"revise",label:draftFor(p)?T.resumeDraft:T.reviseStrategy,onSelect:()=>revise(p)}]:[]),
-    ...(data.canApprove && p.status==="draft" ? [{id:"publish",label:p.basePlanId?T.publishNext:T.publishVersion,onSelect:()=>openPublication(p)}]:[]),
-    {id:"versions",label:T.versionHistory,onSelect:()=>setVersionPlan(p)},
-    ...(data.canEdit ? nextPlanStatuses(p.status).filter(s=>s!=="approved").map(s=>({id:s,label:p.status==="draft"&&s==="archived"?T.discardDraft:STRATEGY_TEXT.planMoveTo[s],
-      onSelect:()=>p.status==="draft"&&s==="archived"?openPublication(p,true):run(p.id,s)})) : []),
-  ];
+  const openPublication=(plan:StrategyView)=>{setPublicationError(null);setPublication(plan);};
+  const discard=async(p:StrategyView)=>{
+    let error:string|null=null;
+    try{const r=await discardStrategyVersion(p.id,p.editToken ?? 1);if(!r.ok)error=PLAN_ERROR[r.error ?? "denied"] ?? PLAN_ERROR.denied;}
+    catch{error=PLAN_ERROR.denied;}
+    if(error){toast({tone:"danger",title:error});throw new Error(error);}
+    router.refresh();
+  };
+  const validationHref=(p:StrategyView)=>`/strategy?${new URLSearchParams({view:"validation",period:p.period,plan:p.id})}`;
+  const viewLabel=(p:StrategyView)=>{
+    if(!p.versionNo)return T.viewDraft;
+    return isLatest(p)?T.openPlan:T.versionRead;
+  };
+  const operationLabel=(p:StrategyView,action:StrategyOperation)=>({
+    view:viewLabel(p),edit:T.editDraft,publish:p.basePlanId?T.publishNext:T.publishVersion,
+    revise:T.reviseStrategy,resume:T.resumeDraft,versions:T.versionHistory,validation:T.validation,
+    active:T.startExecution,closed:T.endStrategy,archived:T.archiveStrategy,discard:T.discardDraft,
+  })[action];
+  const selectOperation=(p:StrategyView,action:StrategyOperation)=>{
+    if(action==="view")router.push(`/strategy/${p.id}`);
+    else if(action==="edit")router.push(`/strategy/new?id=${encodeURIComponent(p.id)}`);
+    else if(action==="revise"||action==="resume")revise(p);
+    else if(action==="publish")openPublication(p);
+    else if(action==="versions")setVersionPlan(p);
+    else if(action==="validation")router.push(validationHref(p));
+    else if(action==="active"){setActivationError(null);setActivation(p);}
+  };
+  const items=(p:StrategyView,omit:readonly StrategyOperation[]=[]):ActionMenuItem[]=>operations(p).actions.filter(a=>!omit.includes(a)).map(action=>{
+    if(action==="closed"||action==="archived"||action==="discard"){
+      const verb={closed:T.endVerb,archived:T.archiveVerb,discard:T.discardDraft}[action];
+      const consequence={closed:T.endHint,archived:T.archiveHint,discard:p.basePlanId?T.discardHint:T.discardInitialHint}[action];
+      return {id:action,label:operationLabel(p,action),danger:true,
+        confirm:{verb,target:`\u300c${p.name}\u300d`,consequence,titleTemplate:DS_LABELS.confirmTitleTemplate,
+          cancelLabel:DS_LABELS.confirmCancel,pendingLabel:DS_LABELS.confirmPending,onConfirm:()=>action==="discard"?discard(p):run(p,action)}};
+    }
+    return {id:action,label:operationLabel(p,action),onSelect:()=>selectOperation(p,action)};
+  });
+  const primaryAction=(p:StrategyView,action:StrategyOperation|undefined,intent:"primary"|"secondary"="secondary")=>action?
+    <PageActionButton intent={intent} disabled={pending} onClick={()=>selectOperation(p,action)} data-strategy-primary-action={action}>{operationLabel(p,action)}</PageActionButton>:null;
   const versionBadge=(p:StrategyView)=><>{p.versionNo ? <Tag>{`V${p.versionNo}`}</Tag> : p.basePlanId ? <Tag>{T.revisionDraft}</Tag>:null}</>;
   const number=(n:number|null|undefined,unit:string)=><StrategyQuantity value={n==null ? T.unknown:n.toLocaleString(locale)} unit={n==null?undefined:unit}/>;
   const money=(n:number,currency:string)=><StrategyQuantity value={n.toLocaleString(locale,{maximumFractionDigits:0})} unit={currency}/>;
-  const card = (p: StrategyView) => <StrategyCharterCard key={p.id} plan={p} currency={data.currency} actions={<RowActions items={items(p)} disabled={pending}/>} draftAvailable={!!draftFor(p) && p.status!=="draft"}/>;
+  const cardActions=(p:StrategyView)=>{const {primary}=operations(p);return <div className="flex items-center gap-sm">
+    {primaryAction(p,primary)}<RowActions label={T.planActions} items={items(p,primary?[primary]:[])} disabled={pending}/></div>;};
+  const card = (p: StrategyView) => <StrategyCharterCard key={p.id} plan={p} currency={data.currency} actions={cardActions(p)} draftAvailable={!!draftFor(p) && p.status!=="draft"}/>;
   const planTitle=(p:StrategyView)=><Link href={`/strategy/${p.id}`} className="block truncate transition-colors hover:text-primary-text">{p.name}</Link>;
   const planCode=(p:StrategyView)=>[p.planNo,strategyPeriodLabel(p.period),p.versionNo ? `V${p.versionNo}` : null].filter(Boolean).join(" \u00b7 ");
   const table=(rows:StrategyView[])=><CollectionTable labels={DATA_TABLE_LABELS} rows={[...sorted.sortRows(rows)]} sort={sorted.sort} onSortChange={sorted.onSortChange} rowKey={p=>p.id} indexStart={1} columns={[
@@ -102,7 +139,7 @@ export function StrategyWorkspace({ data, view, detailId }: { readonly data: Str
       {id:"solutions",sortable:true,header:T.solutionCount,track:"count",cell:p=>number(p.solutions === null || p.products === null ? null : p.solutions.length + p.products.length,D.recordUnit)},
       {id:"campaigns",sortable:true,header:T.campaignCount,track:"count",cell:p=>number(p.campaigns?.length,D.campaignUnit)},
       {id:"status",sortable:true,header:T.status,track:"state",cell:p=><Tag tone={p.status==="active"?"success":"neutral"}>{PLAN_STATUS_LABEL[p.status]}</Tag>},
-    ]} rowActions={p=><RowActions items={items(p)} disabled={pending}/>}
+    ]} rowActions={p=><RowActions label={T.planActions} items={items(p)} disabled={pending}/>}
     empty={<EmptyState title={T.noMatches}/>}/>
   ;
   const current = plans.filter(p=>!["closed","archived"].includes(p.status));
@@ -136,7 +173,7 @@ export function StrategyWorkspace({ data, view, detailId }: { readonly data: Str
   const validationPlanFilter=<FilterSlot width="w-48 max-w-full"><NativeSelect aria-label={T.strategy} value={planFilter} onChange={e=>{
     const q=new URLSearchParams(params);if(e.target.value)q.set("plan",e.target.value);else q.delete("plan");
     router.replace(`/strategy?${q}`,{scroll:false});
-  }}><option value="">{T.allPlans}</option>{data.plans?.filter(p=>!period || p.period===period).map(p=><option key={p.id} value={p.id}>{p.name}{p.versionNo ? ` \u00b7 V${p.versionNo}` : ""}</option>)}</NativeSelect></FilterSlot>;
+  }}><option value="">{T.allPlans}</option>{data.plans?.filter(p=>p.versionNo != null && (!period || p.period===period)).map(p=><option key={p.id} value={p.id}>{p.name}{` \u00b7 V${p.versionNo}`}</option>)}</NativeSelect></FilterSlot>;
   const overview=<>
     <CollectionToolbar title={activeView.label} icon={activeView.icon} mode={{value:layout,onChange:setLayout}}
       count={plans.length} actions={checkButton}
@@ -160,14 +197,14 @@ export function StrategyWorkspace({ data, view, detailId }: { readonly data: Str
           {id:"pipeline",header:T.pipeline,align:"numeric",track:"amount",cell:({result:r,empty})=>r?money(r.open,r.currency):empty},
           {id:"won",header:T.won,align:"numeric",track:"amount",cell:({result:r,empty})=>r?money(r.won,r.currency):empty},
           {id:"rate",header:T.winRate,track:"count",cell:({result:r,empty})=><span className="inline-flex flex-col gap-xs tabular-nums"><span>{r && r.wonCount+r.lostCount>0?`${Math.round(r.wonCount/(r.wonCount+r.lostCount)*100)}%`:empty}</span>{r?<span className="text-body-small text-muted-foreground" title={T.sample}>{r.wonCount} / {r.lostCount}</span>:null}</span>},
-        ]} rowActions={({plan:p})=><RowActions items={[{id:"view",label:T.openPlan,onSelect:()=>router.push(`/strategy/${p.id}`)}]}/>}/>
+        ]} rowActions={({plan:p})=><RowActions label={T.planActions} items={[{id:"view",label:viewLabel(p),onSelect:()=>router.push(`/strategy/${p.id}`)}]}/>}/>
       {selected.some(p=>p.results===null)?<p className="text-body-small text-muted-foreground">{T.unknown}</p>:null}
     </div>;
   };
   const detailFulfillment=detail ? data.fulfillment?.filter(r=>r.acceptance.lineageId===(detail.lineageId ?? detail.id)) ?? null : null;
   const detailContent=detail?<>
     <StrategyDetailGoals plan={detail}/>
-    <StrategyDetailMarkets plan={detail} actions={id=>data.canCreateCampaign && detail.status==="active" && detail.targetMarkets?.find(m=>m.segmentId===id)?.status==="active"
+    <StrategyDetailMarkets plan={detail} actions={id=>data.canCreateCampaign && isLatest(detail) && detail.status==="active" && detail.targetMarkets?.find(m=>m.segmentId===id)?.status==="active"
       ? <Button asChild size="md" variant="ghost"><Link href={`/campaign/create?plan=${encodeURIComponent(detail.id)}&market=${encodeURIComponent(id)}`}>{CAMPAIGN_TEXT.newCampaign}</Link></Button>:null}/>
     <StrategyDetailOfferings plan={detail}/>
     {detail.result?<StrategyAdvanced value={detail.result} currency={data.currency}/>:null}
@@ -179,10 +216,13 @@ export function StrategyWorkspace({ data, view, detailId }: { readonly data: Str
     if (view === "overview") return overview;
     if (plans.length) return results(plans);
     const filtered = !!(period || planFilter);
-    return <EmptyState title={filtered ? T.noMatches : T.noPlans} description={filtered ? undefined : T.noPlansWhy}/>;
+    return <EmptyState title={filtered ? T.noMatches : T.noPublishedPlans} description={filtered ? undefined : T.noPublishedPlansHint}/>;
   };
-  const createAction = data.canCreate ? {href:"/strategy/new",label:T.newPlan} : undefined;
-  const detailMenu = detail ? items(detail).filter(item => !["view", "publish", "revise"].includes(item.id)) : [];
+  const createAction = data.canCreate && view==="overview" ? {href:"/strategy/new",label:T.newPlan} : undefined;
+  const detailOperations=detail?operations(detail):null;
+  const detailPrimary=detailOperations?.detailPrimary;
+  const detailEdit=detailOperations?.actions.includes("edit") && detailPrimary!=="edit";
+  const detailMenu = detail ? items(detail,["view","validation",...(detailPrimary?[detailPrimary]:[]),...(detailEdit?["edit" as const]:[])]) : [];
   return <ViewLayout className="@container" data-strategy-workspace>
     {detail ? <><PageCrumbs trail={[{label:T.strategy,href:"/strategy"}]} current={detail.name}/>
       <div className="flex min-w-0 flex-col gap-lg" data-strategy-detail-intro>
@@ -191,41 +231,50 @@ export function StrategyWorkspace({ data, view, detailId }: { readonly data: Str
         description={<span className="flex flex-wrap items-center gap-x-lg gap-y-xs text-body-small text-muted-foreground"><span title={detail.previousNumbers?.length ? `${T.previousNumbers}: ${detail.previousNumbers.join(" / ")}` : undefined}>{detail.planNo}</span>{detail.createdBySub?<span className="inline-flex min-w-0 items-center gap-xs text-body"><StrategyDetailLabel>{T.creator}</StrategyDetailLabel><MemberName sub={detail.createdBySub}/></span>:null}</span>}
         pageActions={{
           secondary: <>
-            <PageActionButton asChild><Link href={`/strategy?${new URLSearchParams({view:"validation",period:detail.period,plan:detail.id})}`}><Icon name="chart-line" size="sm" aria-hidden="true"/>{T.validation}</Link></PageActionButton>
+            {detail.versionNo?<PageActionButton asChild><Link href={validationHref(detail)}><Icon name="chart-line" size="sm" aria-hidden="true"/>{T.validation}</Link></PageActionButton>:null}
             {checkButton}
-            {detail.status==="draft" && data.canEdit ? <PageActionButton asChild><Link href={`/strategy/new?id=${encodeURIComponent(detail.id)}`}><Icon name="edit" size="sm" aria-hidden="true"/>{R.edit}</Link></PageActionButton> : null}
+            {detailEdit ? primaryAction(detail,"edit") : null}
           </>,
-          primary: detail.status === "draft" && data.canApprove
-            ? <PageActionButton intent="primary" disabled={pending} onClick={() => openPublication(detail)}>{detail.basePlanId ? T.publishNext : T.publishVersion}</PageActionButton>
-            : detail.versionNo && data.canEdit && isLatest(detail) && ["approved","active"].includes(detail.status)
-              ? <PageActionButton intent="primary" disabled={pending} onClick={() => revise(detail)}>{draftFor(detail) ? T.resumeDraft : T.reviseStrategy}</PageActionButton>
-              : undefined,
-          more: detailMenu.length ? <RowActions disabled={pending} items={detailMenu} /> : undefined,
+          primary: primaryAction(detail,detailPrimary,"primary"),
+          more: detailMenu.length ? <RowActions label={T.planActions} disabled={pending} items={detailMenu} /> : undefined,
         }} />
+      {detailOperations?.staleDraft?<output className="block text-body-small text-warning-text">{T.staleDraftHint}</output>:null}
       <StrategyDetailBasic plan={detail}/>
       </div></> : <ModuleHeadline moduleKey="strategy" help={T.brief} create={createAction}
         pageActions={{
           view: viewActions,
-          secondary: view === "overview" && data.canEdit ? <PageActionButton asChild><Link href="/admin/strategy" target="_blank" rel="noopener noreferrer"><Icon name="settings" size="sm" aria-hidden="true"/>{T.typeConfig}</Link></PageActionButton> : undefined,
+          more: data.canConfigure ? <RowActions label={T.workspaceActions} items={[{id:"settings",label:T.typeConfig,icon:"settings",onSelect:()=>router.push("/admin/strategy")}]} /> : undefined,
         }} />}
     {!detail && view==="validation" ? <CollectionToolbar title={activeView.label} icon={activeView.icon} help={resultHelp} count={plans.length} actions={checkButton}>
       {periodFilter}{validationPlanFilter}
     </CollectionToolbar> : null}
     {workspaceContent()}
     <footer className="border-t border-dashed border-primary/10 pt-lg pb-2xl text-body-small text-muted-foreground">{T.dataAt} {new Date(data.at).toLocaleString(locale)}</footer>
-    {publication ? <DialogForm open size="sm" title={publication.discard?T.discardConfirm:T.publishConfirm}
-      description={publication.discard?T.discardHint:publication.plan.basePlanId?T.publishReplacementHint:T.publishHint}
-      submitLabel={publication.discard?T.discardDraft:publication.plan.basePlanId?T.publishNext:T.publishVersion}
+    {activation?<DialogForm open size="sm" title={T.startExecution} description={T.startHint} submitLabel={T.startExecution}
+      submitting={pending} onOpenChange={open=>{if(!open&&!pending)setActivation(null);}}
+      onSubmit={e=>{
+        e.preventDefault();
+        if(pending){return;}
+        start(async()=>{
+          try{await run(activation,"active");setActivation(null);}catch(error){setActivationError(error instanceof Error?error.message:PLAN_ERROR.denied);}
+        });
+      }}>
+      <p className="text-body font-medium">{activation.name}</p>
+      {activationError?<FieldError role="alert">{activationError}</FieldError>:null}
+    </DialogForm>:null}
+    {publication ? <DialogForm open size="sm" title={T.publishConfirm}
+      description={publication.basePlanId?T.publishReplacementHint:T.publishHint}
+      submitLabel={publication.basePlanId?T.publishNext:T.publishVersion}
       submitting={pending} onOpenChange={open=>{if(!open && !pending)setPublication(null);}}
       onSubmit={e=>{e.preventDefault();if(pending)return;start(async()=>{
-        try{const p=publication.plan;const r=publication.discard?await discardStrategyVersion(p.id,p.editToken ?? 1):await publishStrategyVersion(p.id,p.editToken ?? 1);
+        try{const p=publication;const r=await publishStrategyVersion(p.id,p.editToken ?? 1);
           if(!r.ok){setPublicationError(PLAN_ERROR[r.error ?? "denied"] ?? PLAN_ERROR.denied);return;}
-          setPublication(null);toast({tone:"success",title:publication.discard?T.discardDraft:T.publishSuccess});router.refresh();
+          setPublication(null);toast({tone:"success",title:T.publishSuccess});router.refresh();
         }catch{setPublicationError(PLAN_ERROR.denied);}
       });}}>
       <div className="flex flex-col gap-md text-body-small" data-strategy-publication-confirm>
-        <p className="font-medium">{publication.plan.name}</p><p className="text-muted-foreground">{publication.plan.planNo}{" \u00b7 "}{strategyPeriodLabel(publication.plan.period)}</p>
-        {publication.plan.changeReason?<p>{T.changeReason}{" \u00b7 "}{publication.plan.changeReason}</p>:null}
+        <p className="font-medium">{publication.name}</p><p className="text-muted-foreground">{publication.planNo}{" \u00b7 "}{strategyPeriodLabel(publication.period)}</p>
+        {publication.changeReason?<p>{T.changeReason}{" \u00b7 "}{publication.changeReason}</p>:null}
         {publicationError?<FieldError role="alert">{publicationError}</FieldError>:null}
       </div>
     </DialogForm>:null}
@@ -242,7 +291,7 @@ export function StrategyWorkspace({ data, view, detailId }: { readonly data: Str
             {p.changeReason?<p>{p.changeReason}</p>:null}
             {p.basePlanId?<span className="text-muted-foreground">{T.baseVersion} V{data.plans?.find(base=>base.id===p.basePlanId)?.versionNo ?? "?"}</span>:null}
             <div className="flex flex-wrap gap-sm"><Button asChild size="md" variant="secondary"><Link href={`/strategy/${p.id}`} onClick={()=>setVersionPlan(null)}>{T.versionRead}</Link></Button>
-              {p.status==="draft" && data.canEdit ? <Button asChild size="md" variant="secondary"><Link href={`/strategy/new?id=${encodeURIComponent(p.id)}`}>{T.resumeDraft}</Link></Button>:null}
+              {operations(p).actions.includes("edit") ? <Button asChild size="md" variant="secondary"><Link href={`/strategy/new?id=${encodeURIComponent(p.id)}`}>{p.basePlanId?T.resumeDraft:T.editDraft}</Link></Button>:null}
             </div>
           </div></CardContent>
         </Card>):null}

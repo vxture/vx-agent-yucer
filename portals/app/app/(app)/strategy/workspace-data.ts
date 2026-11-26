@@ -66,6 +66,7 @@ export const strategyWorkspaceData = cache(async () => {
     canMarkets,
     canCreate: can(session.authz, session.entitlement, "strategy.plan.create", "ui").allowed,
     canEdit: can(session.authz, session.entitlement, "strategy.plan.update", "ui").allowed,
+    canConfigure: can(session.authz, session.entitlement, "strategy.type.update", "ui").allowed,
     canCreateCampaign: can(session.authz, session.entitlement, "campaign.upsert", "ui").allowed,
     canApprove: can(session.authz, session.entitlement, "strategy.plan.approve", "ui").allowed,
     canWriteMarket: can(session.authz, session.entitlement, "strategy.segment.upsert", "ui").allowed,
