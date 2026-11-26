@@ -70,6 +70,7 @@ export interface PlanFormInitial {
   readonly changeReason: string;
   readonly strategyTypeId?: string | null;
   readonly planNo: string;
+  readonly previousNumbers?: readonly string[];
   readonly name: string;
   readonly period: string;
   readonly objective: string | null;
@@ -182,7 +183,7 @@ export function NewPlanForm({ strategyTypes, strategyOptions, currency, userKey,
   }};
 
   const [strategyTypeId,setStrategyTypeId]=useState(initial?.strategyTypeId ?? "");
-  const nextNo = useMemo(() => nextStrategyNumber(period, existingPlanNos), [period, existingPlanNos]);
+  const nextNo = useMemo(() => nextStrategyNumber(existingPlanNos), [existingPlanNos]);
   const planNo = initial?.planNo ?? manualPlanNo ?? nextNo;
   const selectedResult={...result,
     markets:targets.map(t=>({id:t.segmentId,novelty:result.markets.find(m=>m.id===t.segmentId)?.novelty ?? "unknown" as const})),
@@ -218,7 +219,7 @@ export function NewPlanForm({ strategyTypes, strategyOptions, currency, userKey,
   const ready =
     name.trim() !== "" && (hasExecutionWindow || initial?.period === period) && (initial ? true : planNo.trim() !== "");
 
-  const numberLabel = initial ? <span className="tabular-nums" data-strategy-number>{planNo}</span> :
+  const numberLabel = initial ? <span className="tabular-nums" data-strategy-number title={initial.previousNumbers?.length ? `${T.previousNumbers}: ${initial.previousNumbers.join(" / ")}` : undefined}>{planNo}</span> :
     <Popover open={numberOpen} onOpenChange={setNumberOpen}>
       <PopoverTrigger asChild><Button type="button" size="md" variant="ghost" disabled={submit.pending}
         className="px-0 text-muted-foreground" aria-label={T.strategyNumber} data-strategy-number-trigger>

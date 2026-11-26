@@ -57,6 +57,7 @@ const CAMPAIGN_TABLE = "yucer_gtm.campaign";
 const EXECUTION_TABLE = "yucer_gtm.campaign_execution";
 const SEGMENT_TABLE = "yucer_gtm.market_segment";
 const PLAN_SELECTION = {
+  lineageRoot: { select: { numberAliases: { select: { legacyNo: true } } } },
   strategyType: true,
   productLinks: { select: { productId: true } },
   solutionLinks: { select: { solutionId: true } },
@@ -135,7 +136,7 @@ export class PrismaStrategyStore implements StrategyStore {
       where: { workspaceId, planNo: input.planNo },
       select: { id: true },
     });
-    if (taken) return null;
+    if (taken || await p.strategyNumberAlias.findUnique({where:{workspaceId_legacyNo:{workspaceId,legacyNo:input.planNo}},select:{lineageId:true}})) return null;
 
     let row;
     try { row = await writePlanSolutions(() => p.$transaction(async (tx) => {
@@ -590,6 +591,7 @@ function toPlan(r: Record<string, unknown>): PlanRecord {
     publishedSnapshot:(r.publishedSnapshot as StrategyPublication|null) ?? null,
     createdBySub: (r.createdBySub as string | null) ?? null,
     planNo: String(r.planNo),
+    previousNumbers: ((r.lineageRoot as {numberAliases?:{legacyNo:string}[]} | undefined)?.numberAliases ?? []).map(a=>a.legacyNo).sort(),
     name: String(r.name),
     period: String(r.period),
     strategyTypeId: (r.strategyTypeId as string | null) ?? null,

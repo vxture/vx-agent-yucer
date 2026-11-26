@@ -1,7 +1,7 @@
 import { strategyResultIssues, validStrategyResult, goalExpectations, strategyToday, alignResultRelations, resultRelationsMatch } from "./lib/strategy-result";
 import { businessRecordMissing, nextBusinessCode, saveBusinessRecord, type BusinessWrite } from "../shared/business-code";
 import { parseStrategyPeriod } from "./lib/plan-period";
-import { nextStrategyNumber } from "./lib/plan-number";
+import { nextStrategyNumber, strategyNumbers } from "./lib/plan-number";
 // D1 strategy and D3 campaign application service.
 //
 // campaignReturn() is the function this whole product exists to make possible.
@@ -308,8 +308,9 @@ export async function createPlan(
   input=await catalogResult(ctx,input) as NewPlanDraft;
   const resultCheck=await validateResult(ctx,input);if(!resultCheck.ok)return resultCheck;
   const autoNumber = options.autoNumber === true;
-  const codes = autoNumber ? (await ctx.store.listPlans(ctx.workspaceId)).map(p => p.planNo) : [];
-  const plan = planNewPlan(autoNumber ? { ...input, planNo: nextStrategyNumber(input.period, codes) } : input);
+  const now = new Date();
+  const codes = autoNumber ? (await ctx.store.listPlans(ctx.workspaceId)).flatMap(strategyNumbers) : [];
+  const plan = planNewPlan(autoNumber ? { ...input, planNo: nextStrategyNumber(codes, now) } : input);
   if (!plan.ok) return plan as RuleResult<PlanRecord>;
 
   const type = await validateStrategyType(ctx, input.strategyTypeId);
@@ -332,8 +333,8 @@ export async function createPlan(
     if (!persisted.ok) return persisted;
     if (persisted.value) return ok(persisted.value);
     if (autoNumber) {
-      codes.push(planNo, ...(await ctx.store.listPlans(ctx.workspaceId)).map(p => p.planNo));
-      planNo = nextStrategyNumber(input.period, codes);
+      codes.push(planNo, ...(await ctx.store.listPlans(ctx.workspaceId)).flatMap(strategyNumbers));
+      planNo = nextStrategyNumber(codes, now);
     }
   }
   return fail(violation("plan_no_taken", "strategy number already exists", "planNo"));

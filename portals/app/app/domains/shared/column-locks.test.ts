@@ -248,13 +248,13 @@ test("every table the DDL cannot UPDATE is declared, in the right category", () 
       .filter((m) => /\bINSERT\b/.test(m[1]!.toUpperCase()))
       .flatMap((m) => m[2]!.split(",").map((x) => x.trim())),
   );
-  const insertTables = new Set(
-    [...uncommented.matchAll(/GRANT\s+([A-Z,\s]+?)\s+ON\s+(\w+\.\w+)\s+TO\s+\w+/gi)]
-      .filter((m) => /\bINSERT\b/.test(m[1]!.toUpperCase()))
-      .map((m) => m[2]!),
-  );
-  const insertable = (t: string) =>
-    insertSchemas.has(t.split(".")[0]!) || insertTables.has(t);
+  // A later table-level REVOKE INSERT overrides an earlier schema-wide grant.
+  // Migration-owned aliases in incr/0140 are SELECT-only inside yucer_gtm.
+  const insertTables = new Map<string, boolean>();
+  for (const m of uncommented.matchAll(/(GRANT|REVOKE)\s+([A-Z,\s]+?)\s+ON\s+(\w+\.\w+)\s+(?:TO|FROM)\s+\w+/gi)) {
+    if (/\bINSERT\b/.test(m[2]!.toUpperCase())) insertTables.set(m[3]!,m[1]!.toUpperCase()==="GRANT");
+  }
+  const insertable = (t: string) => insertTables.get(t) ?? insertSchemas.has(t.split(".")[0]!);
   assert.ok(insertSchemas.size > 2, `parsed no schema-wide INSERT grants`);
   assert.deepEqual(
     [...APPEND_ONLY_TABLES].sort(),

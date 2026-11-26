@@ -1,3 +1,4 @@
+import { nextStrategyNumber } from "./lib/plan-number";
 import { EMPTY_ENTITLEMENT } from "../../entitlement/types";
 import { permissionsForRoles } from "../../authz/catalog";
 import { createPlan } from "./service";
@@ -132,7 +133,7 @@ test("concurrent code collisions return one draft and one duplicate result witho
   await cleanup();
   try {
     const store = new PrismaStrategyStore();
-    const input = {planNo: "PLAN-2026-Q1-001", name: "Concurrent strategy", period: "2026-Q1", objective: null, ownerSub: null};
+    const input = {planNo: nextStrategyNumber([]), name: "Concurrent strategy", period: "2026-Q1", objective: null, ownerSub: null};
     const results = await Promise.all([store.createPlan(WS, input), store.createPlan(WS, input)]);
     assert.equal(results.filter(Boolean).length, 1);
     assert.equal(results.filter(r => r === null).length, 1);
@@ -141,7 +142,7 @@ test("concurrent code collisions return one draft and one duplicate result witho
       holder: {permissions: new Set(permissionsForRoles(["sales_leader"]))},
       entitlement: {...EMPTY_ENTITLEMENT, product: "yucer", workspace_id: WS, tier: "business" as const}};
     const automatic = await Promise.all(Array.from({length: 3}, () => createPlan(ctx, {...input, planNo: ""}, {autoNumber: true})));
-    assert.deepEqual(automatic.map(r => unwrap(r).planNo).toSorted(), ["PLAN-2026-Q1-002", "PLAN-2026-Q1-003", "PLAN-2026-Q1-004"]);
+    assert.deepEqual(automatic.map(r => unwrap(r).planNo).toSorted(), [2,3,4].map(n=>`${input.planNo.slice(0,-3)}${String(n).padStart(3,"0")}`));
   } finally { await cleanup(); }
 });
 

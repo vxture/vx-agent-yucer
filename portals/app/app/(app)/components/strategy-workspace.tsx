@@ -56,7 +56,7 @@ export function StrategyWorkspace({ data, view, detailId }: { readonly data: Str
   const detail=data.plans?.find(p=>p.id===detailId);
   const planFilter=view==="validation" ? params.get("plan") ?? "" : "";
   const scopedPlans=view==="overview"?currentStrategyPlans(data.plans ?? []):data.plans?.filter(p=>p.versionNo || !p.basePlanId) ?? [];
-  const plans=scopedPlans.filter(p=>(!planFilter || p.id===planFilter) && (!period || p.period===period) && (!query.trim() || `${p.name} ${p.planNo} ${p.objective ?? ""}`.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase())));
+  const plans=scopedPlans.filter(p=>(!planFilter || p.id===planFilter) && (!period || p.period===period) && (!query.trim() || `${p.name} ${p.planNo} ${(p.previousNumbers ?? []).join(" ")} ${p.objective ?? ""}`.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase())));
   const allowedView = data.canPlan;
   useXiaoyuPageState({query:query.slice(0,160),period,plan:planFilter,view:layout});
   const switchView=(next:StrategyTab)=>{
@@ -91,9 +91,9 @@ export function StrategyWorkspace({ data, view, detailId }: { readonly data: Str
   const versionBadge=(p:StrategyView)=><>{p.versionNo ? <Tag>{`V${p.versionNo}`}</Tag> : p.basePlanId ? <Tag>{T.revisionDraft}</Tag>:null}</>;
   const number=(n:number|null|undefined,unit:string)=><StrategyQuantity value={n==null ? T.unknown:n.toLocaleString(locale)} unit={n==null?undefined:unit}/>;
   const money=(n:number,currency:string)=><StrategyQuantity value={n.toLocaleString(locale,{maximumFractionDigits:0})} unit={currency}/>;
-  const card = (p: StrategyView) => <StrategyCharterCard key={p.id} plan={p} actions={<RowActions items={items(p)} disabled={pending}/>} draftAvailable={!!draftFor(p) && p.status!=="draft"}/>;
+  const card = (p: StrategyView) => <StrategyCharterCard key={p.id} plan={p} currency={data.currency} actions={<RowActions items={items(p)} disabled={pending}/>} draftAvailable={!!draftFor(p) && p.status!=="draft"}/>;
   const planTitle=(p:StrategyView)=><Link href={`/strategy/${p.id}`} className="block truncate transition-colors hover:text-primary-text">{p.name}</Link>;
-  const planCode=(p:StrategyView)=>[strategyPeriodLabel(p.period),p.planNo,p.versionNo ? `V${p.versionNo}` : null].filter(Boolean).join(" \u00b7 ");
+  const planCode=(p:StrategyView)=>[p.planNo,strategyPeriodLabel(p.period),p.versionNo ? `V${p.versionNo}` : null].filter(Boolean).join(" \u00b7 ");
   const table=(rows:StrategyView[])=><CollectionTable labels={DATA_TABLE_LABELS} rows={[...sorted.sortRows(rows)]} sort={sorted.sort} onSortChange={sorted.onSortChange} rowKey={p=>p.id} indexStart={1} columns={[
       {id:"name",sortable:true,header:T.strategy,cell:p=><CollectionTitleCell title={planTitle(p)} description={planCode(p)} tooltip={`${p.name} / ${planCode(p)}`}/>},
       {id:"direction",header:T.direction,align:"left",track:"direction",cell:p=><span className="line-clamp-2" title={p.objective ?? undefined}>{p.objective || T.directionEmpty}</span>},
@@ -188,7 +188,7 @@ export function StrategyWorkspace({ data, view, detailId }: { readonly data: Str
       <div className="flex min-w-0 flex-col gap-lg" data-strategy-detail-intro>
       <ViewHeader icon="graph" title={detail.name} divider={false} data-strategy-detail-header
         secondary={<span className="flex flex-wrap items-center gap-sm">{versionBadge(detail)}<Tag tone={detail.status==="active"?"success":"neutral"}>{PLAN_STATUS_LABEL[detail.status]}</Tag>{detail.versionNo && !isLatest(detail)?<Tag>{T.historicalVersion}</Tag>:null}</span>}
-        description={<span className="flex flex-wrap items-center gap-x-lg gap-y-xs text-body-small text-muted-foreground"><span>{detail.planNo}</span>{detail.createdBySub?<span className="inline-flex min-w-0 items-center gap-xs text-body"><StrategyDetailLabel>{T.creator}</StrategyDetailLabel><MemberName sub={detail.createdBySub}/></span>:null}</span>}
+        description={<span className="flex flex-wrap items-center gap-x-lg gap-y-xs text-body-small text-muted-foreground"><span title={detail.previousNumbers?.length ? `${T.previousNumbers}: ${detail.previousNumbers.join(" / ")}` : undefined}>{detail.planNo}</span>{detail.createdBySub?<span className="inline-flex min-w-0 items-center gap-xs text-body"><StrategyDetailLabel>{T.creator}</StrategyDetailLabel><MemberName sub={detail.createdBySub}/></span>:null}</span>}
         pageActions={{
           secondary: <>
             <PageActionButton asChild><Link href={`/strategy?${new URLSearchParams({view:"validation",period:detail.period,plan:detail.id})}`}><Icon name="chart-line" size="sm" aria-hidden="true"/>{T.validation}</Link></PageActionButton>

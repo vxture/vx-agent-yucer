@@ -3,17 +3,14 @@
 import {DateRangeCalendar, calendarDate} from "./date-range-field";
 import {useState} from "react";
 import {Button, Field, FieldError, FieldLabel, Icon, Input, Popover, PopoverContent, PopoverTrigger, SegmentedControl} from "@vxture/design-ui";
-import {parseStrategyPeriod, strategyPeriodForDates, strategyPeriodRangeLabel} from "../../domains/strategy/lib/plan-period";
+import {parseStrategyPeriod, strategyPeriodForDates, strategyPeriodLabel, strategyPeriodRangeLabel} from "../../domains/strategy/lib/plan-period";
 import {useMessages} from "../lib/i18n/provider";
 
 /** DS composition for an execution window. Dates are primary; presets fill them. */
 export function StrategyPeriodField({value,onChange,disabled}:{readonly value:string;readonly onChange:(value:string)=>void;readonly disabled:boolean}) {
   const {MARKET_STRATEGY_TEXT:T}=useMessages();
   const saved=parseStrategyPeriod(value);
-  const calendar=saved?parseStrategyPeriod(strategyPeriodForDates(saved.startOn,saved.endOn)!):null;
-  const periodLabel=calendar?.kind==="annual"?`${calendar.year} ${T.annual}`
-    :calendar?.kind==="quarter"?`${calendar.year} Q${calendar.quarter}`
-    :saved?T.customDateRange:`${T.legacyPeriodLabel}: ${value}`;
+  const periodLabel=saved ? strategyPeriodLabel(value) : `${T.legacyPeriodLabel}: ${value}`;
   const [open,setOpen]=useState(false);
   const [year,setYear]=useState("");
   const [startOn,setStartOn]=useState("");
@@ -39,7 +36,7 @@ export function StrategyPeriodField({value,onChange,disabled}:{readonly value:st
     <Popover open={open} onOpenChange={next=>{if(next)reset();setOpen(next);}}>
       <PopoverTrigger asChild><Button id="strategy-period" type="button" size="md" variant="outline" disabled={disabled}
         className="w-full justify-between" data-form-value data-strategy-period-trigger title={strategyPeriodRangeLabel(value) ?? T.periodNeedsDates}>
-        <span className="flex min-w-0 items-center gap-xs"><Icon name="calendar" size="sm"/><span className="truncate tabular-nums">{strategyPeriodRangeLabel(value) ?? T.periodNeedsDates}</span></span>
+        <span className="flex min-w-0 items-center gap-xs"><Icon name="calendar" size="sm"/><span className="truncate tabular-nums">{saved ? strategyPeriodLabel(value) : T.periodNeedsDates}</span></span>
         <Icon name="chevron-down" size="sm" className="shrink-0"/>
       </Button></PopoverTrigger>
       <PopoverContent align="start" aria-label={T.executionPeriod} collisionPadding={16} width="xl" data-date-range-panel

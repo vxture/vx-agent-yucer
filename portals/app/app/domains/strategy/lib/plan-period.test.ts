@@ -1,6 +1,6 @@
 import {test} from "node:test";
 import assert from "node:assert/strict";
-import {parseStrategyPeriod, strategyPeriodWindow, strategyPeriodRangeLabel} from "./plan-period";
+import {parseStrategyPeriod, strategyPeriodWindow, strategyPeriodRangeLabel, strategyPeriodLabel} from "./plan-period";
 import {analysePlans} from "./plan-advice";
 
 test("annual, quarterly and legacy half-year keys resolve to exact calendar dates",()=>{
@@ -33,4 +33,11 @@ test("date windows are primary; full years/quarters receive canonical keys and a
   assert.equal(strategyPeriodForDates("2027-11-15","2028-02-29"),"2027-11-15/2028-02-29");
   assert.equal(strategyPeriodForDates("2027-11-15","2027-01-01"),null);
   assert.equal(strategyPeriodForDates("","2028-02-29"),null);
+});
+
+
+test("period display normalizes presets without changing stored keys or custom date ranges",()=>{
+  for (const [key,label] of [["2027","Y2027"],["2027-Q1","2027Q1"],["2027 Q1","2027Q1"],["2027q1","2027Q1"],["2027-H2","2027H2"],["2027H1","2027H1"],["2026-11-15/2027-02-28","2026-11-15 ~ 2027-02-28"],["FY26","FY26"]]) {
+    assert.equal(strategyPeriodLabel(key!),label);
+  }
 });

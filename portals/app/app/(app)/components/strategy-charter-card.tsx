@@ -32,8 +32,8 @@ function referenceLink(row: StrategyReference, preview = false) {
   </Link>;
 }
 
-export function StrategyCharterCard({plan:p,actions,draftAvailable}: {
-  readonly plan: StrategyView; readonly actions: ReactNode; readonly draftAvailable: boolean;
+export function StrategyCharterCard({plan:p,currency,actions,draftAvailable}: {
+  readonly plan: StrategyView; readonly currency: string; readonly actions: ReactNode; readonly draftAvailable: boolean;
 }) {
   const { STRATEGY_HANDOFF_TEXT:H, STRATEGY_RESULT_TEXT:R, MARKET_STRATEGY_TEXT:T, STRATEGY_DETAIL_TEXT:D, PLAN_STATUS_LABEL }=useMessages();
   const locale=useLocale();
@@ -43,6 +43,12 @@ export function StrategyCharterCard({plan:p,actions,draftAvailable}: {
   const markets=p.targetMarkets?.toSorted((a,b)=>Number(b.intent==="focus")-Number(a.intent==="focus"));
   const offerings=p.solutions===null || p.products===null ? null : strategyOfferings(p.solutions,p.products);
 
+  const valueProposition=p.resultOptions?.find(o=>o.kind==="value" && o.id===p.result?.valuePropositionId);
+  const resources=[
+    {key:"people",label:R.people,unit:R.peopleUnit},
+    {key:"funds",label:R.funds,unit:currency},
+    {key:"technology",label:R.technology,unit:R.technologyUnit},
+  ] as const;
   const goals=p.result?.goals.map(g=>({id:g.id,name:g.name,amount:g.target,unit:g.unit && g.unit!=="count"?g.unit:R.count,metric:g.metric}))
     ?? p.expectations?.map(g=>({id:g.id,name:H[g.metric],amount:g.amount,unit:g.currency ?? H.count,metric:g.metric})) ?? [];
   const completedGoals=goals.filter(g=>g.amount.trim()!=="" && Number.isFinite(Number(g.amount)));
@@ -83,12 +89,13 @@ export function StrategyCharterCard({plan:p,actions,draftAvailable}: {
           <div className="flex flex-wrap items-center gap-sm" data-strategy-card-title>
             <h3 className="text-heading-1 leading-snug text-foreground"><Link href={href} className="break-words transition-colors hover:text-primary-text focus-visible:text-primary-text">{p.name}</Link></h3>
             {p.strategyType ? <Tag><span title={p.strategyType.description || undefined}>{p.strategyType.name}</span></Tag>:null}
+            {valueProposition ? <Tag><span title={`${R.value}: ${valueProposition.name}`}>{valueProposition.name}</span></Tag>:null}
             <Tag tone={p.status==="active"?"success":"neutral"}>{PLAN_STATUS_LABEL[p.status]}{p.versionNo ? ` V${p.versionNo}` : p.basePlanId ? ` / ${T.revisionDraft}` : ""}</Tag>
             {draftAvailable ? <Tag>{T.draftAvailable}</Tag>:null}
           </div>
           <div className="flex flex-wrap items-center gap-x-lg gap-y-xs text-body-small text-muted-foreground" data-strategy-card-meta>
-            <span>{p.planNo}</span>
-            <span className="inline-flex items-center gap-xs tabular-nums" title={strategyPeriodRangeLabel(p.period) ?? undefined}>{strategyPeriodLabel(p.period)}</span>
+            <span className="inline-flex items-center gap-xs" title={p.previousNumbers?.length ? `${T.previousNumbers}: ${p.previousNumbers.join(" / ")}` : undefined}><Icon name="file-text" size="sm" aria-hidden="true"/>{p.planNo}</span>
+            <span className="inline-flex items-center gap-xs tabular-nums" title={strategyPeriodRangeLabel(p.period) ?? undefined}><Icon name="calendar" size="sm" aria-hidden="true"/>{strategyPeriodLabel(p.period)}</span>
           </div>
         </div>
         <div className={styles.headingActions}>
@@ -123,7 +130,18 @@ export function StrategyCharterCard({plan:p,actions,draftAvailable}: {
           {otherGoals.length ? <Link href={href} className="text-body-small text-muted-foreground hover:text-primary-text" title={otherGoals.map(g=>`${g.name} ${Number(g.amount).toLocaleString(locale)} ${g.unit}`).join(" / ")}>+{otherGoals.length} {R.goals}</Link>:null}
         </div>
       </div>
-      <div className={styles.footer}>
+      <div className={styles.footer} data-strategy-support>
+        <dl className={styles.resources} data-strategy-resources>
+          {resources.map(resource=>{
+            const raw=p.result?.resources[resource.key];
+            const amount=raw?.trim() ? Number(raw) : NaN;
+            const note=p.result?.resources[`${resource.key}Note`];
+            return <div key={resource.key} className={styles.resource} title={note || undefined} data-strategy-resource={resource.key}>
+              <dt><StrategyDetailLabel>{resource.label}</StrategyDetailLabel></dt>
+              <dd className="min-w-0 text-body font-medium tabular-nums text-foreground">{Number.isFinite(amount)?<StrategyQuantity value={amount.toLocaleString(locale,{maximumFractionDigits:2})} unit={resource.unit}/>:<span className="font-normal text-muted-foreground">{T.resourceUnspecified}</span>}</dd>
+            </div>;
+          })}
+        </dl>
         <dl className={styles.metrics} data-strategy-metrics>
           {metrics.map(m=><div key={m.key} className="flex min-w-0 items-center gap-sm" data-strategy-metric>
             <dt className="truncate text-body text-muted-foreground">{m.label}</dt>
