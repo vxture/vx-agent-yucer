@@ -87,9 +87,13 @@ home and strategy bundle (workplans 139, 140, 141, 142, 143 and 145; PRs
 #815-#822). The owner personally approved database run 45816301415 and
 application run 45817978741. Increment 0140 applied successfully (1 applied,
 140 already recorded). v0.1.145 / 215f206b / production is deployed; registry
-identity, deployment logs and live health agree. Real signed-in acceptance is
-pending renewal of the expired browser session; do not claim it has passed.
-Workplan 146 records the release checklist. Resource-readiness workplan 144
+identity, deployment logs and live health agree. After the owner renewed the
+session, 37 read-only live checks passed: home goals/links, exact recent-task
+restoration, STR and legacy-number resolution, version-correct adoption,
+four module counts/tooltips and narrow dark/large-text layouts. The five
+connected cases use a custom date range, not the Y2027 display period.
+No business writes or model calls were made. Workplan 146 records the release
+checklist. Resource-readiness workplan 144
 remains design-only (RR-02 through RR-05 unimplemented); planned resource
 demand is not an actual-arrival fraction. This authorization covers the
 reviewed v0.1.145 bundle only, not subsequent fixes or releases.
