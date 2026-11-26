@@ -68,5 +68,11 @@ owner 要求统一标题行、卡片操作与生命周期关系，精准出现�
   必需 CI、CodeQL 与 Sonar 仍按关联 PR 最终提交验收。
 - [x] 浏览器仅临时替换本地 React 预览资料；失败确认使用本地拒绝回调，
   未写业务 API、未调用模型。完成后重新载入原资料并恢复显示偏好。
+- [x] Sonar 复核：已简化策略函数的认知复杂度、使用原生 `output` 表达失效提示，
+  并明确开始执行回调的条件块。三条 S6478 是渲染回调误报：
+  两处 `CollectionTable.rowActions` 由 DS `DataTable` 直接调用 `rowActions(row, rowIndex)`，
+  一处 `StrategyDetailMarkets.actions` 直接调用 `actions?.(segmentId)`；
+  均未作为 React 组件类型使用，不存在该规则描述的组件重建问题。
+  保留既有 DS 渲染接口，不添加规则禁用或质量门豁免；最终回执见 PR #820。
 
 预览：http://localhost:4060/strategy 。合并和最终检查以本批关联 PR 为准，未发布。

@@ -15,6 +15,12 @@ function primaryOperation(actions: readonly StrategyOperation[], editable: boole
   return actions.find(a => a === "resume" || a === "revise");
 }
 
+function validStrategyDraft(plan: OperationPlan, latest: OperationPlan | undefined): boolean {
+  if (plan.status !== "draft" || plan.versionNo) return false;
+  if (!plan.basePlanId) return !latest;
+  return latest != null && plan.basePlanId === latest.id && ["approved", "active"].includes(latest.status);
+}
+
 /** Presentation policy only; domain services independently enforce every write. */
 export function strategyOperations(plan: OperationPlan, plans: readonly OperationPlan[], rights: { canEdit: boolean; canApprove: boolean }) {
   const lineage = plan.lineageId ?? plan.id;
@@ -23,10 +29,8 @@ export function strategyOperations(plan: OperationPlan, plans: readonly Operatio
   const latest = published[0];
   const isLatest = latest?.id === plan.id;
   const revisable = latest != null && ["approved", "active"].includes(latest.status);
-  const validDraft = (p: OperationPlan) => p.status === "draft" && !p.versionNo &&
-    (p.basePlanId ? p.basePlanId === latest?.id && revisable : !latest);
-  const draft = family.find(validDraft);
-  const editable = validDraft(plan);
+  const draft = family.find(p => validStrategyDraft(p, latest));
+  const editable = validStrategyDraft(plan, latest);
   const actions: StrategyOperation[] = ["view"];
   if (rights.canEdit && editable) actions.push("edit");
   if (rights.canApprove && editable) actions.push("publish");

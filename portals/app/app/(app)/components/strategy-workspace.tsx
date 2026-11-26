@@ -238,7 +238,7 @@ export function StrategyWorkspace({ data, view, detailId }: { readonly data: Str
           primary: primaryAction(detail,detailPrimary,"primary"),
           more: detailMenu.length ? <RowActions label={T.planActions} disabled={pending} items={detailMenu} /> : undefined,
         }} />
-      {detailOperations?.staleDraft?<p role="status" className="text-body-small text-warning-text">{T.staleDraftHint}</p>:null}
+      {detailOperations?.staleDraft?<output className="block text-body-small text-warning-text">{T.staleDraftHint}</output>:null}
       <StrategyDetailBasic plan={detail}/>
       </div></> : <ModuleHeadline moduleKey="strategy" help={T.brief} create={createAction}
         pageActions={{
@@ -252,9 +252,13 @@ export function StrategyWorkspace({ data, view, detailId }: { readonly data: Str
     <footer className="border-t border-dashed border-primary/10 pt-lg pb-2xl text-body-small text-muted-foreground">{T.dataAt} {new Date(data.at).toLocaleString(locale)}</footer>
     {activation?<DialogForm open size="sm" title={T.startExecution} description={T.startHint} submitLabel={T.startExecution}
       submitting={pending} onOpenChange={open=>{if(!open&&!pending)setActivation(null);}}
-      onSubmit={e=>{e.preventDefault();if(pending)return;start(async()=>{
-        try{await run(activation,"active");setActivation(null);}catch(error){setActivationError(error instanceof Error?error.message:PLAN_ERROR.denied);}
-      });}}>
+      onSubmit={e=>{
+        e.preventDefault();
+        if(pending){return;}
+        start(async()=>{
+          try{await run(activation,"active");setActivation(null);}catch(error){setActivationError(error instanceof Error?error.message:PLAN_ERROR.denied);}
+        });
+      }}>
       <p className="text-body font-medium">{activation.name}</p>
       {activationError?<FieldError role="alert">{activationError}</FieldError>:null}
     </DialogForm>:null}
