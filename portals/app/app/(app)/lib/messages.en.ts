@@ -8528,6 +8528,10 @@ export const en: Dictionary = {
     coverageHelp: "Matched customers meet the current criteria. Assigned customers explicitly belong to this segment and remain visible if criteria change. Incomplete records lack information needed for matching. These counts may overlap and must not be added. Without criteria, customers are not automatically matched.",
   },
   STRATEGY_CARD_TEXT: {
+  "resourceTitle": "Resource investment",
+  "resourcePeople": "People",
+  "resourceFunds": "Funding",
+  "resourceTechnology": "Technology",
   "systemSettings": "System settings",
   "customerSizes": "Customer sizes",
   "segments": "Market segments",

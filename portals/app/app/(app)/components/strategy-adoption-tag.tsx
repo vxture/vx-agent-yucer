@@ -12,11 +12,12 @@ export function StrategyAdoptionTag({ plan, adoption }: { readonly plan: Strateg
   const { STRATEGY_CARD_TEXT: T } = useMessages();
   const state = adoption.state === "ready" ? strategyAdoptionStatus(plan, adoption.rows) : adoption.state;
   const rows = adoption.state === "ready" ? adoption.rows.filter(r => r.lineageId === (plan.lineageId ?? plan.id)) : [];
-  const tone = state === "accepted" ? "success" : ["pending", "previous"].includes(state) ? "warning" : "neutral";
+  const pendingTone = ["pending", "previous"].includes(state) ? "warning" : "neutral";
+  const tone = state === "accepted" ? "success" : pendingTone;
   return <Tooltip>
-    <TooltipTrigger asChild><span tabIndex={0} className="inline-flex min-w-0 max-w-full" data-strategy-adoption={state}>
+    <TooltipTrigger className="inline-flex min-w-0 max-w-full" data-strategy-adoption={state}>
       <Tag tone={tone}>{T.adoption[state]}</Tag>
-    </span></TooltipTrigger>
+    </TooltipTrigger>
     <TooltipContent className={styles.adoptionTooltip}>
       <p>{T.adoptionHint[state]}</p>
       {rows.map(r => <p key={`${r.revisionId}:${r.strategyId}`} className="text-body-small">
