@@ -36,7 +36,7 @@ export default async function SolutionPage({ searchParams }: {
   }
   return (
     <CatalogPage
-      render={({ products, prices, solutions, types, policy, authz, entitlement }) => {
+      render={({ products, prices, solutions, types, policy, authz, entitlement, reads }) => {
         const canWrite = can(authz, entitlement, "catalog.solution.upsert", "ui").allowed;
 
         // Resolve the currency and clock once, then sum actual product prices.
@@ -52,6 +52,7 @@ export default async function SolutionPage({ searchParams }: {
 
         return (
           <SolutionRoster
+            summaryReads={reads}
             key={solution ?? "catalog"}
             initialSolutionId={solution}
             solutions={solutions}

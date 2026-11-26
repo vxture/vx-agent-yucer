@@ -17,7 +17,7 @@ import type { RenewalRiskBasis, RenewalRiskLevel } from "../../domains/delivery/
 // Each override is TYPE-CHECKED against its Chinese counterpart, so a renamed
 // key breaks the build and a function cannot quietly change its arity.
 //
-// COVERAGE, 2026-11-24: 245 of the 248 constants in messages.ts. Three are not
+// COVERAGE, 2026-11-26: 248 of the 251 constants in messages.ts. Three are not
 // here, and none of the three is merely overdue:
 //
 //   PINNED TO zh-CN BY CONSTRUCTION - PREVIEW_FIXTURES, PREVIEW_TEXT. They
@@ -9052,4 +9052,42 @@ export const en: Dictionary = {
     clear: "Clear dates",
     apply: "Apply dates",
   },
+  PLANNING_SUMMARY_TEXT: {
+    comma: ",",
+    unknown: "To verify",
+    noPublished: "None published",
+    noActive: "None on sale",
+    sourceUnavailable: "Business data is incomplete; summary needs verification",
+    strategyLead: "Executing",
+    strategyUnit: "strategies",
+    strategyHint: "Only the latest publication of each strategy counts; closed and archived strategies are excluded. Follows the page period, independently of search text.",
+    adoptionLead: "Accepted into sales plans",
+    adoptionHint: "Strategies accepted into currently effective sales plans / open published strategies, latest version only. At least one objective is accepted; this does not mean all objectives are covered. Draft and scheduled plans do not count in the numerator.",
+    draftTail: "drafts awaiting publication",
+    draftHint: "Includes initial and revision drafts. Drafts never replace published strategies or enter the sales-adoption denominator.",
+    marketLead: "Operating",
+    marketUnit: "markets",
+    marketHint: "Active markets only, excluding paused and exited markets. Uses your visible scope, independently of list search.",
+    matchedLead: "Matching customers",
+    customerUnit: "accounts",
+    matchedHint: "Visible customers matching operating-market criteria, deduplicated across markets. Incomplete profiles awaiting classification are excluded. Unavailable reads are never treated as zero.",
+    offeringTail: "markets need linked offerings",
+    offeringHint: "Operating markets without any default product or solution association. An association does not establish pricing completeness or solution validation.",
+    solutionLead: "Active",
+    solutionUnit: "solutions",
+    solutionHint: "Active solutions only, excluding retired ones. Independent of list search and type filters.",
+    productCoverLead: "Covering",
+    productUnit: "products",
+    productCoverHint: "Distinct visible products referenced by standard and optional items in active solutions. Counts products, not item rows; does not imply every product can be sold.",
+    quoteUnknownLead: "Composition and list prices",
+    quoteTail: "solutions need composition or list prices",
+    quoteHint: "Missing standard items, product records, or effective list prices in the workspace currency. Each solution counts once. Optional prices are excluded. This is not a complete customer-quote check.",
+    productLead: "On sale",
+    productHint: "Uses the canonical on-sale status, excluding development and retired products. Independent of list search and type filters.",
+    pricingLead: "Effective list prices",
+    pricingHint: "On-sale products with an effective list price in the workspace currency / all on-sale products. Future and foreign-currency prices are excluded; a valid zero price counts. Approval and minimum prices are not checked.",
+    developmentTail: "products in development",
+    developmentHint: "Uses the canonical in-development status. Renaming status labels does not change the counting rule.",
+  },
+
 };

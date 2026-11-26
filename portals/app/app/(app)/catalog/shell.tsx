@@ -42,6 +42,7 @@ import { DEFAULT_PRICING_POLICY, type PricingPolicy } from "../../domains/catalo
 // the alternative is three slightly different context builders that drift.
 
 export interface CatalogData {
+  reads: { prices: boolean; policy: boolean; statuses: boolean; solutions: boolean };
   products: readonly ProductRecord[];
   types: readonly ProductTypeRecord[];
   /** The status vocabulary - names and 状态描述 come from here. */
@@ -103,6 +104,7 @@ export async function CatalogPage({
   return (
     <ViewLayout>
       {render({
+        reads: { prices: prices.ok, policy: policy.ok, statuses: statuses.ok, solutions: solutions.ok },
         products: products.value,
         types: types.ok ? types.value : [],
         statuses: statuses.ok ? statuses.value : [],

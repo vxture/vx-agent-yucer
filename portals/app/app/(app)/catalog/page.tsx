@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
 export default async function ProductsPage() {
   return (
     <CatalogPage
-      render={({ products, prices, types, statuses, units, policy, authz, entitlement }) => {
+      render={({ products, prices, types, statuses, units, policy, authz, entitlement, reads }) => {
         const canWrite = can(authz, entitlement, "catalog.product.upsert", "ui").allowed;
         // Use the same clock for the initial render and client hydration.
         const now = Date.now();
@@ -19,6 +19,7 @@ export default async function ProductsPage() {
 
         return (
           <ProductRoster
+            summaryReads={reads}
             products={products}
             types={types}
             statuses={statuses}
