@@ -16,7 +16,8 @@ export function strategyModuleSummary(plans: readonly SummaryStrategy[] | null, 
   const published = current.filter(p => p.versionNo != null);
   const active = current.filter(p => p.status === "active").length;
   const draft = pendingStrategyPlans(plans).filter(p => !period || p.period === period).length;
-  const accepted = adoption.state === "ready" ? published.filter(p => strategyAdoptionStatus(p, adoption.rows) === "accepted").length : null;
+  const year = /^Y?\d{4}$/.test(period) ? Number(period.replace(/^Y/, "")) : undefined;
+  const accepted = adoption.state === "ready" ? published.filter(p => strategyAdoptionStatus(p, adoption.rows, year) === "accepted").length : null;
   return { active, published: published.length, accepted, draft };
 }
 

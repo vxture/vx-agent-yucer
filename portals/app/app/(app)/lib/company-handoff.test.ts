@@ -23,3 +23,14 @@ test("incomplete amount input never crashes the multi-strategy summary", () => {
   const draft = { active: "first", choices: [row("a", "first", "invalid")], selected: ["a"] };
   assert.equal(companyHandoffSummary(draft).invalid, true);
 });
+test("special commitments remain individual targets and invalid special values still block application", () => {
+  const a: StrategyAcceptance = { ...row("a", "first", "5"), expectation: { id: "a", metric: "channels", amount: "5", currency: null, criterion: "Active partners" } };
+  const b: StrategyAcceptance = { ...a, key: "b", strategyId: "second", lineageId: "second", expectation: { ...a.expectation, id: "b" } };
+  const draft = { active: "first", choices: [a, b, row("revenue", "first", "80")], selected: ["a", "b", "revenue"] };
+  const summary = companyHandoffSummary(draft);
+  assert.equal(summary.strategies, 2);
+  assert.equal(summary.metrics, 3);
+  assert.deepEqual(summary.totals.map(t => [t.metric, t.amount]), [["revenue", "80.00"]]);
+  b.amount = "";
+  assert.equal(companyHandoffSummary(draft).invalid, true);
+});

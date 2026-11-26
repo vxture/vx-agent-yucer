@@ -4,6 +4,7 @@ import { useTaskFormReview } from "../components/xiaoyu-form-review";
 import { useXiaoyuForm, XiaoyuFormNotice } from "../components/use-xiaoyu-form";
 import { initializeNewLogoEstimates } from "../lib/planning-autofill";
 import { StrategyHandoffPanel } from "./strategy-handoff-panel";
+import { CommitmentSupport } from "./commitment-overview";
 import { companyPlanningRevision, regionalPlanningRevision } from "../../domains/planning/plan-workflow";
 import { PlanDraftAssistant } from "./plan-draft-assistant";
 import { MemberPicker } from "../components/member-picker";
@@ -111,6 +112,7 @@ function NativePlanningVersionPanel({
     PLAN_VERSION_ERROR: E,
     PLANNING_TEXT: P,
     DS_LABELS,
+    PLANNING_COMMITMENT_TEXT: C,
   } = useMessages();
   const router = useRouter();
   const [plan, setPlan] = useState(initialPlan);
@@ -191,6 +193,7 @@ function NativePlanningVersionPanel({
   let draftStateLabel: string = T.draft;
   if (companyEditing) draftStateLabel = W.scopeCompany;
   if (regionalEditing) draftStateLabel = W.scopeRegions;
+  const companyDraftBadge = draftPreview ? T.previewDraft : T.draft;
   const dirty =
     editing && JSON.stringify(c) !== JSON.stringify(state.draft?.content);
   const [diffSection, setDiffSection] = useState("all");
@@ -214,6 +217,9 @@ function NativePlanningVersionPanel({
   const [adopt, setAdopt] = useState(false);
   const [lockPeriod, setLockPeriod] = useState(`${year}Q1`);
   const [checksOpen, setChecksOpen] = useState(false);
+  const [manageHandoff, setManageHandoff] = useState(false);
+  const [handoffRequest, setHandoffRequest] = useState(0);
+  const [showHandoffRequest, setShowHandoffRequest] = useState(0);
   const [checkError, setCheckError] = useState("");
   const [panel, setPanel] = useState<"diff" | "history" | "version" | null>(
     null,
@@ -299,7 +305,7 @@ function NativePlanningVersionPanel({
   };
   const run = (
     command: PlanCommand,
-    afterSave?: "publish" | "browse" | "check" | "preview",
+    afterSave?: "publish" | "browse" | "check" | "preview" | "handoff",
   ) => {
     if (inFlight.current) return;
     inFlight.current = true;
@@ -339,8 +345,17 @@ function NativePlanningVersionPanel({
         setMessage(command.kind === "save" ? T.saved : T.done);
         setConfirm(null);
         setPanel(null);
-        if (afterSave === "publish" || afterSave === "check")
-          await checkDraft(result.plan, afterSave === "publish");
+        switch (afterSave) {
+          case "publish":
+          case "check":
+            await checkDraft(result.plan, afterSave === "publish");
+            break;
+          case "handoff":
+            setHandoffRequest(value => value + 1);
+            break;
+          default:
+            break;
+        }
         router.refresh();
       } catch {
         setError(E.plan_save_failed!);
@@ -802,7 +817,9 @@ function NativePlanningVersionPanel({
               </Button>
             </div>
           ) : null}
-          <StrategyHandoffPanel content={c} sources={sources} edit={edit} regionId={regionId} disabled={pending} lockedPeriods={lockedPeriods}/>
+          <StrategyHandoffPanel content={c} sources={sources} edit={edit} regionId={regionId} disabled={pending} lockedPeriods={lockedPeriods}
+            isDraft={revision?.state === "draft"} manageRequest={handoffRequest} expandRequest={showHandoffRequest}
+            onManage={canEdit && !readonlyVersion && !state.closed ? () => setManageHandoff(true) : undefined}/>
           <Section
             className="@container"
             icon="target"
@@ -862,7 +879,7 @@ function NativePlanningVersionPanel({
 
                 {!currentRegion && companyRevision ? (
                   <StatusBadge tone={companyEditing ? "warning" : "info"}>
-                    {revision?.state === "draft" && c.releaseScope === "company" ? (draftPreview ? T.previewDraft : T.draft) : `${T.published} V${companyRevision.version}`}
+                    {revision?.state === "draft" && c.releaseScope === "company" ? companyDraftBadge : `${C.publishedCommitment} V${companyRevision.version}`}
                   </StatusBadge>
                 ) : null}
                 {currentRegion ? (
@@ -944,6 +961,7 @@ function NativePlanningVersionPanel({
                 {currentRegion.reason}
               </p>
             )}
+            {!currentRegion || currentRegion.included ? <CommitmentSupport content={c} regionId={currentRegion?.id} revisionId={revision?.id} draft={revision?.state === "draft"} canAttainment={!!sources.canAttainment} canCustomers={sources.canCustomers} onShowHandoff={() => setShowHandoffRequest(value => value + 1)}/> : null}
           </Section>
           {revision?.state === "draft" && c.releaseScope === "company" ? null : currentRegion ? (
             currentRegion.included ? (
@@ -1150,6 +1168,25 @@ function NativePlanningVersionPanel({
         ) : (
           <EmptyState title={T.checksEmpty} description={T.checksEmptyHint} />
         )}
+      </Drawer>
+      <Drawer open={manageHandoff} onClose={() => setManageHandoff(false)} width="md" title={C.editTitle} description={`Y${year}`} closeLabel={C.cancel}
+        footer={<div className="flex flex-wrap justify-end gap-sm pb-3xl">
+          <Button size="xl" variant="secondary" onClick={() => setManageHandoff(false)}>{C.cancel}</Button>
+          {state.draft?.content.releaseScope === "regions" ? <>
+            <Button size="xl" variant="secondary" disabled={pending || dirty} onClick={() => { if (choose(state.draft!.id, true)) { setManageHandoff(false); setPanel("version"); } }}>{C.versionManagement}</Button>
+            <Button size="xl" disabled={pending || dirty} onClick={() => { if (choose(state.draft!.id, true)) setManageHandoff(false); }}>{C.continueRegion}</Button>
+          </> : <Button size="xl" disabled={pending || dirty} onClick={() => {
+            if (state.draft) {
+              if (!choose(state.draft.id, true)) return;
+              setHandoffRequest(value => value + 1);
+            } else run({kind:"draft",content:{} as PlanContent,scope:"company"}, "handoff");
+            setManageHandoff(false);
+          }}>{state.draft ? C.companyDraft : C.newCompany}</Button>}
+        </div>}>
+        <div className="flex flex-col gap-lg pb-3xl text-body">
+          {state.draft?.content.releaseScope === "regions" ? <><p className="font-medium">{C.regionDraft}</p><p>{C.regionConflict}</p></> : <p>{C.beginHelp}</p>}
+          {dirty ? <output className="text-warning">{T.saveFirst}</output> : null}
+        </div>
       </Drawer>
       {canEdit &&
       !state.closed &&

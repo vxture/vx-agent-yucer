@@ -34,6 +34,12 @@ test("scheduled or draft acceptance is not effective adoption and unreadable ado
   assert.deepEqual(strategyModuleSummary([], "", { state: "ready", rows: [] }), { active: 0, published: 0, accepted: 0, draft: 0 });
 });
 
+test("an annual strategy summary cannot borrow adoption from a different sales year", () => {
+  const otherYear = { ...handoff, year: 2026 };
+  assert.equal(strategyModuleSummary([publication], "Y2027", { state: "ready", rows: [otherYear] })?.accepted, 0);
+  assert.equal(strategyModuleSummary([publication], "", { state: "ready", rows: [otherYear, handoff] })?.accepted, 1);
+});
+
 function customer(id: string, match: NonNullable<MarketView["customers"]>[number]["match"] = "match") {
   return { id, name: id, accountNo: id, industry: null, region: null, customerSize: null, segmentId: null, match, assigned: false };
 }

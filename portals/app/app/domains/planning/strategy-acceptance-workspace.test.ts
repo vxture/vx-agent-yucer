@@ -39,17 +39,17 @@ test("group order follows strategic roster, retaining missing historic sources",
   const revenue=acceptance(expanded), channel=proposeAcceptance(content(),expanded,channels,null,id()), reference=proposeAcceptance(content(),expanded,cases,null,id());
   assert.deepEqual(groupAcceptances([channel,reference,revenue],[expanded])[0]!.map(x=>x.expectation.metric),["revenue","channels","reference_cases"]);
 });
-test("proposal uses remaining company capacity and preserves the existing UUID, source and regional allocations", () => {
+test("proposal preserves source values and existing commitments instead of silently clamping new strategies", () => {
   const c=content(),p=source();c.targets[0]!.target="100";
-  const x=acceptance(p,c);assert.equal(x.amount,"100.00");
+  const x=acceptance(p,c);assert.equal(x.amount,"1000.10");
   x.amount="50";x.allocations=[{key:id(),regionId:"east",period:"2026Q1",amount:"50",ownerSub:"owner"}];c.strategyAcceptances=[x];
   const next=proposeAcceptance(c,{...p,id:id(),lineageId:p.id,versionNo:2},p.expectations![0]!,null,id());
   assert.deepEqual(next,x);next.allocations[0]!.amount="1";assert.equal(x.allocations[0]!.amount,"50");
-  const other=acceptance(source(),c);assert.equal(other.amount,"50.00");
+  const other=acceptance(source(),c);assert.equal(other.amount,"1000.10");
 });
-test("multi-year count proposals stay integral and use only this year's execution window", () => {
+test("multi-year targets require explicit annual values rather than day-based allocation", () => {
   const p={...source("channels"),period:"2026-01-01/2027-12-31"};
-  assert.equal(acceptance(p).amount,"1");
+  assert.equal(acceptance(p).amount,"");
   assert.equal(acceptance({...p,ownerSub:null}).ownerSub,"fallback");
 });
 test("company cancellation removes a whole acceptance but cannot change retained regional content", () => {
