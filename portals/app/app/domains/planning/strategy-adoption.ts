@@ -9,6 +9,7 @@ export interface StrategyAdoption {
   revisionId: string;
   planVersion: number | null;
   state: "current" | "scheduled" | "draft" | "closed";
+  objectiveCount?: number;
 }
 
 /** Only working releases and an authorized draft count, never superseded history. */
@@ -24,14 +25,15 @@ export function strategyAdoptions(plans: readonly SalesPlan[], at: string, inclu
       if (!revision) return [];
       const unique = new Map((revision.content.strategyAcceptances ?? []).map(x => [x.strategyId, x]));
       return [...unique.values()].map(x => ({ strategyId: x.strategyId, lineageId: x.lineageId,
-        strategyVersion: x.version, year: plan.year, revisionId: revision.id, planVersion: revision.version, state }));
+        strategyVersion: x.version, year: plan.year, revisionId: revision.id, planVersion: revision.version, state,
+        objectiveCount: new Set((revision.content.strategyAcceptances ?? []).filter(a => a.strategyId === x.strategyId).map(a => a.expectation.id)).size }));
     });
   });
 }
 
-export function strategyAdoptionStatus(plan: { id: string; lineageId?: string | null; versionNo?: number | null }, rows: readonly StrategyAdoption[]) {
+export function strategyAdoptionStatus(plan: { id: string; lineageId?: string | null; versionNo?: number | null }, rows: readonly StrategyAdoption[], year?: number) {
   if (!plan.versionNo) return "unpublished";
-  const family = rows.filter(r => r.lineageId === (plan.lineageId ?? plan.id));
+  const family = rows.filter(r => r.lineageId === (plan.lineageId ?? plan.id) && (year === undefined || r.year === year));
   const sameVersion = family.filter(r => r.strategyId === plan.id);
   if (sameVersion.some(r => r.state === "current")) return "accepted";
   if (sameVersion.some(r => r.state === "scheduled")) return "scheduled";

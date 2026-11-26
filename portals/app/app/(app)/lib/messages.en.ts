@@ -99,6 +99,20 @@ const companyPlanningText = {
 
 export const en: Dictionary = {
   ...(zh as unknown as Dictionary),
+  PLANNING_COMMITMENT_TEXT: {
+    annual: "Annual revenue commitment", draftAnnual: "Draft annual revenue", strategic: "Strategic share", other: "Other business targets", excess: "Excess commitment", missing: "To confirm",
+    reconcileHelp: "Strategic revenue is part of the annual commitment. Time and region allocate the same target on separate axes. Channels, cases, new customers and pipeline support revenue and are not added to it.",
+    countHelp: "Count each registered identity once. Separate registrations with the same name remain separate. Channel and case targets can overlap across strategies and are not a company-wide unique count.",
+    special: "Supporting commitments", targetUnit: "targets", customers: "Focus customers", customerUnit: "customers", newCustomers: "New-customer target", pipeline: "Pipeline target", actions: "Action milestones", support: "Target support",
+    supportHelp: "Customer counts use the registered identities in this version's contributions and actions. New customers and pipeline are supporting targets. Check actual results in attainment. Review special targets by strategy.",
+    pendingAllocation: "Includes unallocated items", manage: "Adjust handoff", sourceSelection: "Select strategic targets", sourceGoal: "Strategic expectation", annualGoal: "This year's commitment", annualInput: "Confirm this year's commitment", annualRevenueInput: "Confirm the company annual revenue target in the same currency before applying strategic commitments.",
+    multiYear: "Multi-year strategy: confirm this year's share", withinYear: "Adjust this year's commitment", noAutomatic: "Use the strategic expectation as a reference. Select targets and confirm annual commitments, apply them to the draft, then save and publish.",
+    overAnnual: "Strategic commitments exceed annual revenue. Adjust the commitments or the company annual target.",
+    editTitle: "Adjust strategic handoff", companyDraft: "Continue company draft", regionDraft: "A regional draft is in progress", regionConflict: "Strategy selection and company commitments belong to company planning. The regional draft preserves the published company basis and only adjusts regional and quarterly allocations. Finish publishing it, or explicitly discard it, before changing company commitments.",
+    continueRegion: "Continue regional planning", versionManagement: "Manage draft", newCompany: "Start company planning", beginHelp: "Select strategies, annual commitments and owners in the company draft. Save changes, then publish to establish the attainment basis. The current publication stays effective until then.", cancel: "Back",
+    acceptedAcrossYears: "In annual sales plans", adoptionYearHelp: "Check the selected year. Across all periods, count each strategy included in an effective annual plan once. This does not mean every year or every objective is covered.",
+    countMetrics: "objectives", countsSeparate: "Confirm special targets individually; do not combine their counts across strategies.", savedNotCommitted: "Draft is not a formal commitment", publishedCommitment: "Formal commitment", evidenceCount: "Evidence items", evidenceCountHelp: "Special results currently count valid evidence entries, not distinct registered customers or partners. An object may support multiple strategies; do not add these figures across strategies.", axisHelp: "Time and region allocate the same annual target"
+  },
   SIGNAL_WORKSPACE_TEXT: {
   "pending": "Awaiting review",
   "all": "All signals",
@@ -572,7 +586,7 @@ export const en: Dictionary = {
   confirmBreakdown: "Confirm breakdown",
   noAllocations: "No allocation for this region. Auto allocate or add a quarter.",
   closeDetails: "Close",
-  companyHelp: "Accept annual revenue, channel and reference-case targets together from published strategies. Summaries use accepted standard metrics, grouped by currency; custom goals are excluded. These explain annual targets and are not added to them. Regional planning allocates quarters after company publication.",
+  companyHelp: "Select published strategies and confirm annual commitments and owners. Reconcile revenue shares against annual targets by currency. Review channel and case commitments separately; their combined counts are not unique company totals. Allocate by quarter and region after company publication.",
   acceptanceDetails: "Alignment details",
   editAllocation: "Edit allocation",
   addAllocation: "Add allocation",

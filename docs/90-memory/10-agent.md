@@ -185,6 +185,15 @@ product changes still require explicit owner release confirmation.
 
 ## Test-account business content
 
+Owner clarified (2026-11-26, workplan 149): strategy provides macro direction
+at any scale or duration. The company sales plan commits annual executable
+targets, with time and region as independent allocation axes. Named customers,
+pipeline, new customers, channels and reference cases support those targets.
+Deduplicate registered objects by identity only: two distinct registrations
+with the same name remain two objects. Credit-code matching, intelligent
+duplicate detection and record merging are future work outside this batch.
+Implement and preview this bundle; no new application release is authorized.
+
 Owner instruction (2026-11-25): business records added to the authorized
 test account, including records already entered in this batch, should use normal
 business names and prose, without

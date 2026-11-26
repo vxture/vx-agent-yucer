@@ -2,6 +2,7 @@ import type { PlanContent } from "./plan-model";
 import type { StrategyAcceptance } from "./strategy-handoff";
 import type { PlanRecord } from "../strategy/store";
 import { expectationWindow, type StrategicMetric } from "../strategy/lib/expectations";
+import { parseStrategyPeriod } from "../strategy/lib/plan-period";
 import { amount, minor } from "./plan-values";
 
 // Only metrics with source, allocation and fulfillment support are selectable.
@@ -46,15 +47,12 @@ export function proposeAcceptance(content: PlanContent, p: AcceptanceSource, exp
   const existing = content.strategyAcceptances?.find(x => x.lineageId === (p.lineageId ?? p.id) && x.expectation.metric === expectation.metric);
   // A published source is frozen until an explicit change, even when a newer source exists.
   if (existing) return structuredClone(existing);
-  const w = expectationWindow(p.period, content.year)!;
-  const dates = p.period.includes("/") ? p.period.split("/") : null;
-  const days = BigInt((Date.parse(w.end) - Date.parse(w.start)) / 86400000 + 1);
-  const full = dates ? BigInt((Date.parse(dates[1]!) - Date.parse(dates[0]!)) / 86400000 + 1) : days;
-  const proposed = (minor(expectation.amount) * days + full / 2n) / full;
-  const revenue = content.targets.find(t => t.scope === "workspace" && t.period === `Y${content.year}` && t.metric === "revenue" && t.currency === expectation.currency);
-  const used = (content.strategyAcceptances ?? []).filter(x => x.expectation.metric === "revenue" && x.expectation.currency === expectation.currency).reduce((n, x) => n + minor(x.amount), 0n);
-  const capacity = revenue?.target == null ? 0n : minor(revenue.target) - used;
-  const value = expectation.metric === "revenue" ? amount(capacity <= 0n ? 0n : proposed > capacity ? capacity : proposed) : String(proposed / 100n);
+  // A source is a direction, not an annual allocation formula. Cross-year
+  // targets require an explicit annual value; never silently cap proposals
+  // against the old company target or distribute a multi-year goal by days.
+  const period = parseStrategyPeriod(p.period);
+  const withinYear = period?.startOn.slice(0, 4) === String(content.year) && period.endOn.slice(0, 4) === String(content.year);
+  const value = withinYear ? expectation.amount : "";
   return { key, strategyId: p.id, lineageId: p.lineageId ?? p.id, version: p.versionNo!, name: p.name, period: p.period, expectation, amount: value, ownerSub: p.ownerSub ?? owner, note: "", allocations: [] };
 }
 

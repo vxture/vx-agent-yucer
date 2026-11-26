@@ -12,6 +12,6 @@ export function toggleCompanyStrategy(draft: CompanyHandoffDraft, strategyId: st
 }
 export function companyHandoffSummary(draft: CompanyHandoffDraft) {
   const rows = draft.choices.filter(x => draft.selected.includes(x.key));
-  try { return { strategies: new Set(rows.map(x => x.strategyId)).size, metrics: rows.length, totals: acceptanceSummary(rows), invalid: false }; }
+  try { return { strategies: new Set(rows.map(x => x.strategyId)).size, metrics: rows.length, totals: acceptanceSummary(rows).filter(t => t.metric === "revenue"), invalid: false }; }
   catch { return { strategies: new Set(rows.map(x => x.strategyId)).size, metrics: rows.length, totals: [], invalid: true }; }
 }

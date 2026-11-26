@@ -17,6 +17,7 @@
 
 .companyMetric {
   display: grid;
+  container: handoff-metric / inline-size;
   min-width: 0;
   grid-template-columns: auto minmax(0, 1fr);
   align-items: start;
@@ -32,4 +33,16 @@
 
 .companyContent {
   gap: var(--space-md);
+}
+
+/* Keep the amount readable in the full-screen phone drawer. */
+@container handoff-metric (max-width: 22rem) {
+  .companyFields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .companyFields > :last-child {
+    justify-self: end;
+    max-width: 8rem;
+  }
 }

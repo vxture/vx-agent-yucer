@@ -8,12 +8,16 @@ import type { StrategyAcceptance } from "../../domains/planning/strategy-handoff
 import { ACCEPTANCE_METRICS } from "../../domains/planning/strategy-acceptance-workspace";
 import type { PlanSources } from "./plan-data";
 import styles from "./strategy-handoff-drawer.module.css";
+import { CommitmentRevenue } from "./commitment-overview";
+import type { PlanContent } from "../../domains/planning/plan-model";
+import { commitmentRevenue } from "../../domains/planning/commitment-summary";
 
 import { companyHandoffSummary, toggleCompanyStrategy, type CompanyHandoffDraft } from "../lib/company-handoff";
 export type { CompanyHandoffDraft } from "../lib/company-handoff";
 
-export function StrategyCompanyHandoffDrawer({ draft, members, year, lockedPeriods, disabled, error, onChange, onSave, onClose }: Readonly<{
+export function StrategyCompanyHandoffDrawer({ draft, content, members, year, lockedPeriods, disabled, error, onChange, onSave, onClose }: Readonly<{
   draft: CompanyHandoffDraft;
+  content: PlanContent;
   members: PlanSources["members"];
   year: number;
   lockedPeriods: readonly string[];
@@ -23,22 +27,27 @@ export function StrategyCompanyHandoffDrawer({ draft, members, year, lockedPerio
   onSave: () => void;
   onClose: () => void;
 }>) {
-  const { STRATEGY_HANDOFF_TEXT: T } = useMessages(), locale = useLocale();
+  const { STRATEGY_HANDOFF_TEXT: T, PLANNING_COMMITMENT_TEXT: C } = useMessages(), locale = useLocale();
   const groups = [...new Set(draft.choices.map(x => x.strategyId))].map(id => draft.choices.find(x => x.strategyId === id)!);
   const summary = companyHandoffSummary(draft);
+  const candidate = { ...content, strategyAcceptances: draft.choices.filter(x => draft.selected.includes(x.key)) };
+  const reconciliation = commitmentRevenue(candidate);
+  const overAnnual = reconciliation.some(r => r.excess !== null);
+  const missingAnnual = candidate.strategyAcceptances.some(x => x.expectation.metric === "revenue" && reconciliation.some(r => r.currency === x.expectation.currency && r.annual === null));
   const memberOptions = members.map(m => ({ value: m.sub, label: m.name }));
   const update = (x: StrategyAcceptance) => onChange({ ...draft, choices: draft.choices.map(y => y.key === x.key ? x : y) });
   return <Drawer open width="md" className="max-w-full" title={T.accept} description={`Y${year}`} closeLabel={T.closeDetails} onClose={onClose}
     footer={<div className={styles.footer} data-handoff-footer>
       {error ? <p role="alert" className="text-body-small text-destructive">{error}</p> : null}
-      <div className="flex items-center justify-end gap-sm"><Button data-control-kind="drawer-action" size="xl" variant="secondary" onClick={onClose}>{T.cancel}</Button><Button data-control-kind="drawer-action" size="xl" disabled={disabled || summary.invalid} onClick={onSave}>{T.applySelection}</Button></div>
+      <div className="flex items-center justify-end gap-sm"><Button data-control-kind="drawer-action" size="xl" variant="secondary" onClick={onClose}>{T.cancel}</Button><Button data-control-kind="drawer-action" size="xl" disabled={disabled || summary.invalid || overAnnual || missingAnnual} onClick={onSave}>{T.applySelection}</Button></div>
     </div>}>
     <div className={`${styles.content} ${styles.companyContent}`} data-business-fields data-handoff-drawer="company">
       <div className="flex flex-col gap-sm rounded-md border bg-muted/30 p-md" data-company-handoff-summary>
         <div className="flex items-center justify-between gap-md"><strong className="text-body">{T.selectedSummary(summary.strategies, summary.metrics)}</strong><TitleHelp topic={T.source}>{T.companyHelp}{" "}{T.multiStrategyHelp}</TitleHelp></div>
-        <p className="text-body-small text-muted-foreground">{T.multiStrategyHelp}</p>
-        <div className="flex flex-wrap gap-md">{summary.totals.map(t => <span key={`${t.metric}:${t.currency}`} className="text-body-small text-muted-foreground">{t.metric === "revenue" ? T.revenueTarget : T[t.metric]} <strong className="text-foreground tabular-nums">{Number(t.amount).toLocaleString(locale)} {t.currency ?? T.count}</strong></span>)}</div>
-        {summary.invalid ? <p role="alert" className="text-body-small text-destructive">{T.validation}</p> : null}
+        <p className="text-body-small text-muted-foreground">{C.noAutomatic}</p>
+        <CommitmentRevenue content={candidate} draft/>
+        <p className="text-body-small text-muted-foreground">{C.countsSeparate}</p>
+        {summary.invalid || overAnnual || missingAnnual ? <p role="alert" className="text-body-small text-destructive">{missingAnnual ? C.annualRevenueInput : overAnnual ? C.overAnnual : C.annualInput}</p> : null}
       </div>
       {groups.map(group => {
         const rows = draft.choices.filter(x => x.strategyId === group.strategyId).sort((a, b) => ACCEPTANCE_METRICS.indexOf(a.expectation.metric) - ACCEPTANCE_METRICS.indexOf(b.expectation.metric));
@@ -65,11 +74,12 @@ export function StrategyCompanyHandoffDrawer({ draft, members, year, lockedPerio
             <div className={styles.companyFields}>
                 <InputGroup>
                   <InputGroupAddon><FieldLabel htmlFor={`${id}-amount`} title={reference} className="whitespace-nowrap text-body font-normal">{metric}</FieldLabel></InputGroupAddon>
-                  <InputGroupInput id={`${id}-amount`} aria-label={`${T.accepted} ${metric}`} inputMode={x.expectation.metric === "revenue" ? "decimal" : "numeric"} className="text-right font-medium tabular-nums" value={x.amount} disabled={disabled || !selected} onChange={e => update({ ...x, amount: e.target.value })}/><InputGroupAddon align="end">{unit}</InputGroupAddon>
+                  <InputGroupInput id={`${id}-amount`} aria-label={`${C.annualGoal} ${metric}`} placeholder={C.missing} inputMode={x.expectation.metric === "revenue" ? "decimal" : "numeric"} className="text-right font-medium tabular-nums" value={x.amount} disabled={disabled || !selected} onChange={e => update({ ...x, amount: e.target.value })}/><InputGroupAddon align="end">{unit}</InputGroupAddon>
                 </InputGroup>
               <MemberPicker id={`${id}-owner`} className="w-full min-w-0" label={`${T.owner} ${metric}`} options={memberOptions} value={x.ownerSub} disabled={disabled || !selected} onValueChange={sub => update({ ...x, ownerSub: sub || null })}/>
             </div>
           {selected ? <>
+            <p className="text-body-small text-muted-foreground" data-handoff-source-goal>{C.sourceGoal}{" "}{Number(x.expectation.amount).toLocaleString(locale)} {unit}{" / "}{x.period}</p>
             <Textarea id={`${id}-note`} aria-label={`${metric} ${x.expectation.metric === "revenue" ? T.note : T.criterion}`} rows={1} className="min-h-control-md resize-none" maxLength={1000} disabled={disabled} value={x.note} placeholder={x.expectation.metric === "revenue" ? T.note : T.criterion} onChange={e => update({ ...x, note: e.target.value })}/>
             {locked ? <p className="inline-flex items-center gap-xs text-body-small text-muted-foreground"><Icon name="lock" size="xs"/>{T.removeLocked}</p> : null}
           </> : null}

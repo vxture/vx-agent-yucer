@@ -5,6 +5,7 @@ import Link from "next/link";
 import links from "./business-reference.module.css";
 import { Button, Card, CardContent, Drawer, Field, FieldLabel, Input, NativeSelect, Progress, StatusBadge } from "@vxture/design-ui";
 import { Section } from "./help-section";
+import { TitleHelp } from "./title-help";
 import { MemberName } from "../lib/member-names";
 import { useMessages, useLocale } from "../lib/i18n/provider";
 import type { FulfillmentRow } from "../lib/strategy-fulfillment";
@@ -12,7 +13,7 @@ import { recordStrategicResult } from "../attainment/strategy-actions";
 import metricLayout from "./strategy-metric-groups.module.css";
 
 export function StrategyFulfillmentPanel({ rows, canRecord = false }: { rows: FulfillmentRow[] | null; canRecord?: boolean }) {
-  const { STRATEGY_HANDOFF_TEXT: T, PLAN_VERSION_ERROR: E } = useMessages(), locale = useLocale();
+  const { STRATEGY_HANDOFF_TEXT: T, PLAN_VERSION_ERROR: E, PLANNING_COMMITMENT_TEXT: C } = useMessages(), locale = useLocale();
   const [selected, setSelected] = useState<FulfillmentRow | null>(null), [allocation,setAllocation] = useState("");
   const [achievedOn,setDate] = useState(new Date().toISOString().slice(0,10)), [url,setUrl] = useState(""), [note,setNote] = useState(""), [error,setError] = useState("");
   const [pending,start] = useTransition(); const router = useRouter();
@@ -36,7 +37,7 @@ export function StrategyFulfillmentPanel({ rows, canRecord = false }: { rows: Fu
       return <Card key={key}><CardContent className="flex flex-col gap-lg pt-lg">
         <div className="flex flex-wrap items-center justify-between gap-md"><Link href={`/strategy/${first.acceptance.strategyId}`} className={`${links.textLink} text-body font-medium`}>{first.acceptance.name}<span className="ml-sm text-body-small font-normal text-muted-foreground">{first.year} · V{first.acceptance.version}</span></Link><div className="flex items-center gap-md"><MemberName sub={first.acceptance.ownerSub}/><Button asChild variant="ghost" size="md"><Link href={`/planning?year=${first.year}&revision=${first.revisionId}`}>{T.openPlan}</Link></Button></div></div>
         <div className={metricLayout.groups}>{group.map(row => {const x=row.acceptance,pct=row.actual !== null && Number(row.target)>0 ? Number(row.actual)/Number(row.target)*100 : 0; return <div key={x.key} className="flex min-w-0 flex-col gap-sm" data-strategic-fulfillment-metric>
-          <div className="flex h-control-sm items-center justify-between gap-md text-body-small text-muted-foreground"><span>{x.expectation.metric === "revenue" ? T.won : T[x.expectation.metric]}</span>{x.expectation.metric !== "revenue" ? <Button size="sm" variant="ghost" onClick={() => {setSelected(row);setAllocation(row.allocations[0]?.key ?? "");setError("");setNote("");}}>{T.results}</Button> : null}</div>
+          <div className="flex min-h-control-sm items-center justify-between gap-md text-body-small text-muted-foreground"><span className="inline-flex min-w-0 items-center gap-xs">{x.expectation.metric === "revenue" ? T.won : <>{T[x.expectation.metric]}<span>{" / "}{C.evidenceCount}</span><TitleHelp topic={C.evidenceCount}>{C.evidenceCountHelp}</TitleHelp></>}</span>{x.expectation.metric !== "revenue" ? <Button size="sm" variant="ghost" onClick={() => {setSelected(row);setAllocation(row.allocations[0]?.key ?? "");setError("");setNote("");}}>{T.results}</Button> : null}</div>
           <div className="text-heading-3 tabular-nums">{row.actual === null ? T.unknown : format(row.actual)} <span className="text-body-small font-normal text-muted-foreground">/ {format(row.target)} {x.expectation.currency ?? T.count}</span></div><Progress value={row.actual === null ? null : Math.min(100,pct)} aria-label={T.progress}/>
         </div>;})}</div>
       </CardContent></Card>;

@@ -19,13 +19,13 @@ function ratioValue(total: number, value: number | null, empty: string, unknown:
 }
 
 export function StrategyModuleSummary(props: { readonly plans: Parameters<typeof strategyModuleSummary>[0]; readonly period: string; readonly adoption: Parameters<typeof strategyModuleSummary>[2]; readonly onShowDrafts?: () => void }) {
-  const { PLANNING_SUMMARY_TEXT: T } = useMessages(), locale = useLocale();
+  const { PLANNING_SUMMARY_TEXT: T, PLANNING_COMMITMENT_TEXT: C } = useMessages(), locale = useLocale();
   const s = strategyModuleSummary(props.plans, props.period, props.adoption);
   if (!s) return <span data-planning-summary="strategy">{T.sourceUnavailable}</span>;
   return <span className={styles.summary} data-planning-summary="strategy">
     <span>{T.strategyLead} <Figure hint={T.strategyHint}>{s.active.toLocaleString(locale)}</Figure> {T.strategyUnit}</span>
     <span data-summary-pending>{T.draftLead} <Figure hint={T.draftHint} label={`${T.draftLead} ${s.draft.toLocaleString(locale)} ${T.draftUnit}`} attention={s.draft > 0} onClick={s.draft > 0 ? props.onShowDrafts : undefined}>{s.draft.toLocaleString(locale)}</Figure> {T.draftUnit}</span>
-    <span>{T.adoptionLead} <Figure hint={T.adoptionHint}>{ratioValue(s.published, s.accepted, T.noPublished, T.unknown, locale)}</Figure></span>
+    <span>{C.acceptedAcrossYears} <Figure hint={C.adoptionYearHelp}>{s.accepted === null ? T.unknown : s.accepted.toLocaleString(locale)}</Figure> {T.strategyUnit}</span>
   </span>;
 }
 

@@ -30,7 +30,10 @@ test("handoff counts current planning once per strategy despite multiple accepte
   const sales = plan([revision("current")], [release("current")]);
   const rows = strategyAdoptions([sales], now, false);
   assert.equal(rows.length, 1);
+  assert.equal(rows[0]!.objectiveCount, 2);
   assert.equal(strategyAdoptionStatus(strategy, rows), "accepted");
+  assert.equal(strategyAdoptionStatus(strategy, rows, 2027), "pending");
+  assert.equal(strategyAdoptionStatus(strategy, rows, 2026), "accepted");
   assert.equal(strategyAdoptionStatus({ ...strategy, id: "strategy-v2", versionNo: 2 }, rows), "previous");
   assert.equal(strategyAdoptionStatus({ ...strategy, id: "revision-draft", versionNo: null }, rows), "unpublished");
   assert.equal("expectation" in rows[0], false);
