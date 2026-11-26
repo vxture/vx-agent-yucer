@@ -118,6 +118,15 @@ It supersedes the earlier preview-only hold for this bundle. Report meaningful
 milestones and update the checklist. Production Environment approval remains
 owner-only; never approve it on the owner's behalf.
 
+Workplan 148 / PR #827 is merged at d1754efb. DO-00 through DO-07 are
+complete: 50 local browser checks, 3,623 offline tests and 529 real database
+tests; PR/main six required checks and CodeQL passed, PR Sonar gate passed.
+The main external Sonar gate retains the prior E/C baseline, tracked in #684;
+this merge adds one maintainability item and no bug/vulnerability. DO-08 tag
+v0.1.147 has a verified production image and is waiting for owner approval
+at run 45870636983. No DDL/config changes. Do not claim it deployed or the
+live acceptance complete until the owner approves and the run succeeds.
+
 Owner instruction (2026-11-26): implement a coherent stage before running the
 full test suite. Small, reversible adjustments receive only the relevant
 checks; do not rerun the entire local suite after each small step. Run broader
