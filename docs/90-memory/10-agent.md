@@ -71,11 +71,16 @@ the completed C01-C04 report. This authorizes the unified v0.1.143 release from
 bundle only. Future changes still require explicit release authorization;
 production Environment approval remains an owner-only GitHub action.
 
-v0.1.143 is now deployed with owner approval (run 45740803764, 2659c04e).
-Live registration found a signal resolution save failure; the local fix and
-regressions may proceed, but a subsequent application release still requires
-explicit owner confirmation. Track this residual in workplan 135. Do not count
-the live scoring/promotion chain or unconfigured Arda feed as accepted.
+v0.1.143 deployed with owner approval (run 45740803764, 2659c04e). Its live
+signal resolution save failure was fixed in #813. The owner explicitly
+confirmed this patch release and personally approved run 45750630815;
+v0.1.144 (16f31bb1, production) is deployed and healthy. All five existing
+manual signals passed live matching/scoring; one promoted lead was found by
+business number, repeated promotion was refused, evidence stayed unchanged,
+and the launcher agrees with the four remaining pending signals. Track the
+acceptance in workplan 135. Arda external ingestion remains unconfigured and
+unverified. This authorization covers the reviewed patch only; future changes
+still require explicit owner release confirmation.
 
 ## Test-account business content
 
