@@ -82,6 +82,17 @@ acceptance in workplan 135. Arda external ingestion remains unconfigured and
 unverified. This authorization covers the reviewed patch only; future changes
 still require explicit owner release confirmation.
 
+## Product button hierarchy preference
+
+Owner clarified (2026-11-25): primary page actions use DS 14px typography;
+secondary actions use DS 12px typography. Prefer one control size within an
+action row, normally retaining the existing 32px height. Mixed typography or
+DS control sizes in the same row are allowed when they improve hierarchy or
+usability; uniform sizing is a design preference, not an absolute prohibition.
+Apply this by action importance, not button appearance alone. Do not mechanically
+resize existing controls. See the product workspace-layout design's operation
+density section. This does not authorize a release.
+
 ## Test-account business content
 
 Owner instruction (2026-11-25): business records added to the authorized
