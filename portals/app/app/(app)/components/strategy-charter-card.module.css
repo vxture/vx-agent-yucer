@@ -142,7 +142,7 @@
   font-size: var(--body-font-size);
   font-weight: var(--font-weight-medium);
   line-height: var(--body-line-height);
-  color: color-mix(in srgb, var(--foreground) 80%, var(--primary-text) 20%);
+  color: var(--primary-text);
   overflow-wrap: anywhere;
 }
 
@@ -165,17 +165,32 @@
   gap: var(--space-lg);
 }
 
-.resource { display: flex; min-width: 0; flex-wrap: wrap; align-items: baseline; gap: var(--space-sm); }
-.resource > dd { overflow-wrap: anywhere; }
+.resource, .metric {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: var(--strategy-summary-label-width, 5em) minmax(0, 1fr);
+  align-items: start;
+  column-gap: var(--space-sm);
+  row-gap: var(--space-xs);
+}
+
+.resource > dt { display: flex; align-items: start; }
+.resource > dd, .metric > dd { display: flex; min-width: 0; align-items: start; overflow-wrap: anywhere; }
+.metric { grid-template-columns: max-content minmax(0, 1fr); }
 
 .metrics {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   align-items: start;
-  flex-wrap: wrap;
   gap: var(--space-lg);
   min-width: 0;
   border-left: 1px solid color-mix(in srgb, var(--foreground) 6%, transparent);
   padding-left: var(--strategy-card-section-gap);
+}
+
+/* Keep every support label and value on shared rows when space is tight. */
+@container (max-width: 80em) {
+  .resource, .metric { grid-template-columns: minmax(0, 1fr); }
 }
 
 @container (max-width: 40rem) {
@@ -184,10 +199,12 @@
   .illustration { display: none; }
 }
 
-:global(html:lang(en)) .relation { --strategy-summary-label-width: 9em; }
+:global(html:lang(en)) .relation,
+:global(html:lang(en)) .resources { --strategy-summary-label-width: 9em; }
 
 @container (max-width: 24rem) {
   .resources { grid-template-columns: minmax(0, 1fr); }
+  .resource { grid-template-columns: var(--strategy-summary-label-width, 5em) minmax(0, 1fr); }
   .relation { grid-template-columns: minmax(0, 1fr); gap: var(--space-xs); }
 }
 
