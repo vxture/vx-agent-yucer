@@ -18,7 +18,7 @@ test("structured forms take precedence and use only whitelisted panels",async()=
 });
 test("a failed research turn never makes partial evidence or a completed business result",async()=>{
   const b=await fixture();b.turns.push(turn({status:"failed",artifacts:{version:"task-artifacts/1",capturedAt:new Date().toISOString(),research:[],calls:[],usage:{elapsedMs:100,totalTokens:30,toolRounds:1,truncated:true},failure:{reason:"tokens",modelRequests:1,toolCalls:1}}}));
-  const v=taskWorkspaceView(b);assert.equal(v.kind,"conversation");assert.equal(v.stage,"failed");assert.deepEqual(v.panels,["forms","activity","sources"]);
+  const v=taskWorkspaceView(b);assert.equal(v.kind,"conversation");assert.equal(v.stage,"failed");assert.deepEqual(v.panels,["context","forms","activity","sources"]);
 });
 test("recorded successful research changes the layout; running and terminal states remain distinct",async()=>{
   const b=await fixture();b.turns.push(turn({artifacts:{version:"task-artifacts/1",capturedAt:new Date().toISOString(),research:[{id:"read-1",capabilityId:"search",operation:"search",callId:null,version:null,excerpt:"Evidence",links:[]}],calls:[],usage:{elapsedMs:100,totalTokens:30,toolRounds:1,truncated:false}}}));
@@ -30,4 +30,16 @@ test("recorded successful research changes the layout; running and terminal stat
 test("unreadable form content is counted without treating it as valid data",async()=>{
   const b: TaskBundle=await fixture();b.drafts.push({id:"draft",key:"broken",revision:1,contractVersion:"business-form/1",text:'{"module":"unknown","html":"<script>bad</script>"}',createdAt:new Date()});
   const v=taskWorkspaceView(b);assert.equal(v.invalidDrafts,1);assert.deepEqual(v.modules,[]);assert.deepEqual(v.panels,["forms"]);
+});
+
+test("restoring a saved task before its first answer exposes context without inventing results", async () => {
+  const b = await fixture();
+  b.drafts.push({id:"notes",key:"notes",revision:1,contractVersion:"private-notes/1",text:"Follow up with procurement",createdAt:new Date()});
+  b.messages.push({id:"question",seq:1,role:"user",content:"Prepare the follow-up",createdAt:new Date()});
+  const view = taskWorkspaceView(b);
+  assert.equal(view.overviewMessageId, null);
+  assert.equal(view.kind, "conversation");
+  assert.equal(view.stage, "awaiting");
+  assert.deepEqual(view.panels, ["context", "forms"]);
+  assert.equal(b.drafts[0]?.text, "Follow up with procurement");
 });

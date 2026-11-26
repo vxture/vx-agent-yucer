@@ -77,7 +77,7 @@ function TaskBoard({ outputKey, editor, labels }: {
   readonly outputKey: string;
 }) {
   const { XIAOYU_TEXT: T, HOME_OVERVIEW_TEXT: H, XIAOYU_FORMS: F } = useMessages();
-  const { bundle, busy, recoveryTaskId } = useXiaoyu();
+  const { bundle, busy, loading, recoveryTaskId } = useXiaoyu();
   const view = taskWorkspaceView(bundle);
   const latest = bundle?.messages.find(m => m.id === view.overviewMessageId);
   return <section data-xiaoyu-board className={styles.board} aria-label={T.boardTitle}>
@@ -93,9 +93,9 @@ function TaskBoard({ outputKey, editor, labels }: {
     </header>
     <div className={styles.boardScroll} >
       {editor}
-      {outputKey ? <>
+      {loading ? <p role="status" className="text-body text-muted-foreground">{H.taskRestoring}</p> : outputKey ? <>
         {recoveryTaskId ? <XiaoyuFormLinks /> : null}
-        {view.panels.map(panel => panel === "forms" ? <XiaoyuFormLinks key={panel} /> : panel === "sources" ? <XiaoyuResearch key={panel} /> : panel === "activity" ? <TaskActivity key={panel} /> : latest ? <Card key={panel} className="gap-sm p-md">
+        {view.panels.map(panel => panel === "context" ? <TaskContext key={panel} labels={labels} /> : panel === "forms" ? <XiaoyuFormLinks key={panel} /> : panel === "sources" ? <XiaoyuResearch key={panel} /> : panel === "activity" ? <TaskActivity key={panel} /> : latest ? <Card key={panel} className="gap-sm p-md">
           <h3 className="flex items-center gap-sm text-label"><Icon name="lightbulb" size="sm" />{T.boardConclusion}</h3>
           <Collapsible key={latest.id}>
             <div className={`${styles.reportPreview} line-clamp-4`}><XiaoyuMarkdown text={latest.content} labels={labels} unavailable={F.referenceUnavailable}/></div>
@@ -113,6 +113,22 @@ function TaskBoard({ outputKey, editor, labels }: {
       {busy ? <p className="text-body-small text-muted-foreground">{T.boardUpdating}</p> : null}
     </div>
   </section>;
+}
+
+function TaskContext({ labels }: { readonly labels: Record<string, string> }) {
+  const { bundle, input } = useXiaoyu();
+  const { HOME_OVERVIEW_TEXT: H, XIAOYU_FORMS: F } = useMessages();
+  if (!bundle) return null;
+  const notes = bundle.drafts.find(d => d.key === "notes" && d.contractVersion === "private-notes/1")?.text;
+  const lastQuestion = bundle.messages.findLast(m => m.role === "user")?.content;
+  return <Card className="gap-md p-lg" data-task-saved-context>
+    <h2 className="flex items-center gap-sm text-label"><Icon name="clipboard" size="sm" />{H.taskContext}</h2>
+    <XiaoyuMarkdown text={bundle.task.goal} labels={labels} unavailable={F.referenceUnavailable} />
+    {notes ? <div className="space-y-xs"><h3 className="text-body-small text-muted-foreground">{H.savedNotes}</h3><XiaoyuMarkdown text={notes} labels={labels} unavailable={F.referenceUnavailable} /></div> : null}
+    {lastQuestion || input ? <div className="space-y-xs"><h3 className="text-body-small text-muted-foreground">{input ? H.savedInput : H.continueTask}</h3><XiaoyuMarkdown text={input || lastQuestion!} labels={labels} unavailable={F.referenceUnavailable} /></div> : null}
+    {bundle.references.length ? <p className="text-body-small text-muted-foreground">{H.savedReferences} \u00b7 {bundle.references.length}</p> : null}
+    <p className="text-body-small text-muted-foreground">{H.taskContextHint}</p>
+  </Card>;
 }
 
 function TaskIdentity({ view }: { readonly view: WorkspaceView }) {
@@ -339,7 +355,7 @@ export function XiaoyuSurface({ full = false, controls, pageTools, editor }: { r
   const drafts = bundle?.drafts.filter(d => d.contractVersion === "business-form/1").map(d => d.id) ?? [];
   const latest = bundle?.messages.findLast(m => m.role === "assistant");
   const lastTurn = bundle?.turns.at(-1);
-  const hasOutput = drafts.length > 0 || !!latest || !!lastTurn || (!!bundle && bundle.task.status !== "active");
+  const hasOutput = !!bundle;
   const outputKey = recoveryTaskId ?? (hasOutput ? `${bundle?.task.id}:${drafts.join(",")}:${latest?.id ?? ""}:${lastTurn?.id ?? ""}:${boardJump}` : "");
   const closeControl = full ? <Button size="icon-xl" variant="ghost" aria-label={T.close} title={T.close} data-assistant-close onClick={() => { setConversationOpen(false); setMobile("board"); requestAnimationFrame(() => document.querySelector<HTMLButtonElement>("[data-assistant-dock-trigger] button")?.focus()); }}><Icon name="x" size="sm" /></Button> : controls;
   const conversation = <XiaoyuConversation labels={labels} full={full} controls={closeControl} pageTools={pageTools} outputKey={outputKey} showResults={() => { setBoardJump(i => i + 1); setMobile("board"); }} />;

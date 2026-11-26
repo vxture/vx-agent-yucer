@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { XiaoyuClient, pageObject, pointerKey, workspaceHref, type TaskView } from "./xiaoyu-client";
+import { XiaoyuClient, requestedWorkspaceTask, pageObject, pointerKey, workspaceHref, type TaskView } from "./xiaoyu-client";
 import { InMemoryTaskStore } from "../../domains/copilot/task-store";
 import { TASK_RULE_VERSION } from "../../domains/copilot/lib/task-contract";
 import { COMPOSER_DRAFT_KEY, routePageContext } from "../../domains/copilot/lib/page-context";
@@ -169,4 +169,15 @@ test("local list filters and selections survive form context updates without cro
  f.client.setPageListing("/segment",null);f.client.suspend();
  await f.client.start(null);f.client.setPageContext(routePageContext("/segment"));
  assert.equal(f.client.getSnapshot().pageContext?.selection,undefined);
+});
+
+test("only an explicit collaboration URL selects a task before the remembered pointer", async () => {
+  const f = await fixture(), other = crypto.randomUUID();
+  assert.equal(requestedWorkspaceTask("/copilot", "task=" + f.task.id), f.task.id);
+  assert.equal(requestedWorkspaceTask("/account/" + other, "task=" + f.task.id), null);
+  assert.equal(requestedWorkspaceTask("/copilot/today", "task=" + f.task.id), null);
+  assert.equal(requestedWorkspaceTask("/copilot", "task=invalid"), null);
+  await f.client.start(requestedWorkspaceTask("/copilot", "task=" + f.task.id) ?? other);
+  assert.equal(f.client.getSnapshot().bundle?.task.id, f.task.id);
+  assert.ok(f.calls.every(c => c.method === "GET" && !c.url.endsWith(other)));
 });

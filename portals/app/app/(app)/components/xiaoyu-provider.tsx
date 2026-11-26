@@ -1,8 +1,8 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { XiaoyuClient, pointerKey } from "../lib/xiaoyu-client";
+import { XiaoyuClient, pointerKey, requestedWorkspaceTask } from "../lib/xiaoyu-client";
 import { routePageContext } from "../../domains/copilot/lib/page-context";
 
 const Context = createContext<XiaoyuClient | null>(null);
@@ -11,6 +11,7 @@ export function XiaoyuProvider({ workspaceId, actorSub, enabled, children }: {
 }) {
   const router=useRouter();
   const pathname = usePathname(), search = useSearchParams().toString();
+  const entryTask = useRef(requestedWorkspaceTask(pathname, search));
   const [client] = useState(() => new XiaoyuClient(
     (path, init) => fetch(path, init),
     id => { try { const key = pointerKey(workspaceId, actorSub); if (id) sessionStorage.setItem(key, id); else sessionStorage.removeItem(key); } catch { /* Storage may be disabled. URLs still work. */ } },
@@ -20,7 +21,8 @@ export function XiaoyuProvider({ workspaceId, actorSub, enabled, children }: {
     if (!enabled) return;
     let id: string | null = null;
     try { id = sessionStorage.getItem(pointerKey(workspaceId, actorSub)); } catch { /* Optional pointer only. */ }
-    void client.start(id);
+    // An explicit recent-work link takes precedence over the last open task.
+    void client.start(entryTask.current ?? id);
     const refresh = () => { if (document.visibilityState === "visible") void client.refresh(); };
     window.addEventListener("focus", refresh);
     const timer = window.setInterval(() => { if (document.visibilityState === "visible") void client.refresh(false); }, 30000);

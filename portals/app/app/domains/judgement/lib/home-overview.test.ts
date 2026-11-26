@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { overviewPeriod, publishedOverviewMetric, openOpportunityOverview } from "./home-overview";
+import { overviewPeriod, publishedOverviewMetric, openOpportunityOverview, overviewMarginRate } from "./home-overview";
 import type { TargetRecord } from "../../planning/store";
 import type { ForecastableOpportunity } from "../../pipeline/lib/forecast";
 const now = new Date("2026-11-24T12:00:00Z");
@@ -34,6 +34,30 @@ test("new customers use the published count, never the registered account total"
   const t = target("new", {metric:"new_logo",targetValue:{unit:"count",amount:12}});
   const metric = publishedOverviewMetric([{target:t,measurement:{kind:"measured",achieved:{unit:"count",amount:3},ratio:25}}], [t], "new_logo");
   assert.deepEqual(metric, {state:"ready",amount:3,target:12,currency:null});
+});
+test("pipeline support reads its matching published measurement, not all open deals", () => {
+  const t = target("pipeline", {metric:"pipeline", targetValue:{unit:"money",amount:3000,currency:"CNY"}});
+  const other = target("other", {metric:"pipeline",scopeType:"territory",territoryId:"east"});
+  const metric = publishedOverviewMetric([
+    {target:other,measurement:{kind:"measured",achieved:{unit:"money",amount:9000,currency:"CNY"},ratio:9}},
+    {target:t,measurement:{kind:"measured",achieved:{unit:"money",amount:1200,currency:"CNY"},ratio:0.4}},
+  ], [t], "pipeline");
+  assert.deepEqual(metric, {state:"ready",amount:1200,target:3000,currency:"CNY"});
+});
+test("margin rate is an estimate from the matching revenue baseline, never profit attainment", () => {
+  const revenue = target("r"), margin = target("m", {metric:"margin",targetValue:{unit:"money",amount:400,currency:"CNY"}});
+  assert.equal(overviewMarginRate([revenue,margin]), 0.4);
+  assert.equal(overviewMarginRate([revenue,{...margin,targetValue:{unit:"money",amount:0,currency:"CNY"}}]), 0);
+  const actual = publishedOverviewMetric([{target:margin,measurement:{kind:"not_measurable",code:"no_cost_data"}}], [revenue,margin], "margin");
+  assert.equal(actual.amount, null); assert.equal(actual.target, 400); assert.equal(actual.state, "unmeasured");
+  for (const patch of [
+    {period:"Y2027"}, {planId:"another-plan"}, {scopeType:"territory" as const}, {ownerSub:"bob"}, {territoryId:"east"},
+    {targetValue:{unit:"money" as const,amount:400,currency:"USD"}},
+    {targetValue:{unit:"money" as const,amount:1200,currency:"CNY"}},
+  ]) assert.equal(overviewMarginRate([revenue,{...margin,...patch}]), null);
+  assert.equal(overviewMarginRate([margin]), null);
+  assert.equal(overviewMarginRate([revenue,margin,target("duplicate")]), null);
+  assert.equal(overviewMarginRate([{...revenue,targetValue:{unit:"money",amount:0,currency:"CNY"}},margin]), null);
 });
 const deal = (id: string, patch: Partial<ForecastableOpportunity> = {}): ForecastableOpportunity => ({id,stage:"qualify",status:"open",forecastCategory:"pipeline",amount:{amount:0.1,currency:"CNY"},territoryId:null,ownerSub:"alice",...patch});
 test("opportunity amounts keep currencies separate, retain missing amounts and exclude closed outcomes", () => {

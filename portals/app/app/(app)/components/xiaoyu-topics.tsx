@@ -26,6 +26,7 @@ import {
 import { useMessages, useLocale } from "../lib/i18n/provider";
 import { useXiaoyu } from "./xiaoyu-provider";
 import type { Judgement } from "../../domains/judgement/lib/judgement";
+import { judgementRecordHref } from "../../domains/judgement/lib/record-link";
 import { SourceMark } from "./source-mark";
 import { StaleMark } from "./stale-mark";
 import styles from "./xiaoyu-workspace.module.css";
@@ -46,11 +47,6 @@ type Feed = {
   pendingUpdate?: boolean;
   observedAt?: string;
 };
-function businessRecordHref(finding: Judgement) {
-  if (finding.subjectType === "team") return "/planning";
-  const module = finding.subjectType === "opportunity" ? "pipeline" : "account";
-  return `/${module}/${finding.subjectId}`;
-}
 export function XiaoyuTopics({ compact = false, onDiscuss, daily = false }: {
   readonly compact?: boolean;
   readonly onDiscuss?: () => void;
@@ -305,7 +301,7 @@ export function XiaoyuTopics({ compact = false, onDiscuss, daily = false }: {
                 {T.evidence}<Icon name="chevron-down" size="xs" className={styles.evidenceChevron} />
               </Button></CollapsibleTrigger> : null}
               <Button size="md" variant="outline" asChild className={styles.evidenceSource}>
-                <Link data-judgement-evidence-link href={businessRecordHref(row.finding)}>
+                <Link data-judgement-evidence-link href={judgementRecordHref(row.finding)}>
                   <Icon name="external-link" size="xs" />{T.source}
                 </Link>
               </Button>

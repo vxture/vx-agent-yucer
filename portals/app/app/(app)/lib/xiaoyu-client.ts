@@ -38,6 +38,10 @@ export function pageObject(path: string): TaskObject | null {
   return kinds[module] ? { kind: kinds[module], id } : null;
 }
 export const workspaceHref = (id?: string) => id ? `/copilot?task=${encodeURIComponent(id)}` : "/copilot";
+export function requestedWorkspaceTask(pathname: string, search: string): string | null {
+  const id = pathname === "/copilot" ? new URLSearchParams(search).get("task") : null;
+  return id && UUID.test(id) ? id : null;
+}
 class RequestFailure extends Error {
   constructor(readonly code: string, readonly status: number) { super(code); }
 }

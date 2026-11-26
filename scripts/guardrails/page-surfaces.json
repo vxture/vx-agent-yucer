@@ -1392,6 +1392,7 @@
     }
   ],
   "preservedControls": {
+    "(app)/components/home-overview.tsx": "The owner requires both Today actions to retain the DS xl 32px / 14px size, including the ghost action inside a content card.",
     "(app)/components/xiaoyu-workspace.tsx": "Task navigation contains a multiline goal and status; content controls its height with a DS 32px minimum so rows cannot overlap.",
     "(app)/components/strategy-preview-card.tsx": "Accessible card preview trigger fills the card surface; its height follows content rather than the operation-control height ladder.",
     "(app)/components/entry-panel.tsx": "Owner-requested CoSpace non-business entry kit v1.3.1: full-width 48px actions with 14px labels across all entry states."
