@@ -60,13 +60,10 @@
   composes: divider from "./strategy-info-card.module.css";
   display: grid;
   grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
-  grid-template-rows: repeat(3, auto);
-  align-items: stretch;
-  gap: var(--strategy-card-row-gap) var(--strategy-card-section-gap);
-}
-
-.body[data-goal-count="4"] {
-  grid-template-rows: repeat(4, auto);
+  align-items: start;
+  column-gap: var(--strategy-card-section-gap);
+  font-size: var(--body-font-size);
+  line-height: var(--body-line-height);
 }
 
 .referenceText {
@@ -84,47 +81,56 @@
 }
 
 .relations {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  grid-column: 1;
-  grid-row: 1 / -1;
-  grid-template-rows: subgrid;
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: var(--strategy-card-row-gap);
 }
 
 .relation {
   display: grid;
-  grid-template-columns: 5em minmax(0, 1fr);
-  align-items: baseline;
+  grid-template-columns: var(--strategy-summary-label-width, 5em) minmax(0, 1fr);
+  align-items: start;
   gap: var(--space-sm);
 }
 
+.relation > :first-child, .goal > dt { display: flex; min-width: 0; align-items: start; }
+.references { display: grid; min-width: 0; grid-template-columns: repeat(2, minmax(0, 1fr)) auto; align-items: start; column-gap: var(--space-md); }
+.references[data-reference-count="0"], .references[data-reference-count="1"] { grid-template-columns: minmax(0, 1fr); }
+.referenceItem { display: flex; min-width: 0; align-items: center; gap: var(--space-xs); font: inherit; }
+.referenceItem > span { flex: 1; }
+.moreReferences { white-space: nowrap; }
+.directionValue { display: flex; min-width: 0; align-items: start; gap: var(--space-xs); }
+.directionValue > svg { margin-top: calc((1lh - var(--spacing-icon-sm)) / 2); }
+
 .outcome {
-  display: grid;
+  display: flex;
+  flex-direction: column;
+  gap: var(--strategy-card-row-gap);
   min-width: 0;
-  grid-column: 2;
-  grid-row: 1 / -1;
-  grid-template-rows: subgrid;
   border-left: 1px solid color-mix(in srgb, var(--foreground) 6%, transparent);
   padding-left: var(--strategy-card-section-gap);
 }
 
 .goals {
-  display: grid;
-  grid-row: 1 / -1;
-  grid-template-rows: subgrid;
+  display: flex;
+  flex-direction: column;
+  gap: var(--strategy-card-row-gap);
 }
 
 .goal {
   display: grid;
-  grid-template-columns: 5em minmax(0, 1fr);
-  align-items: baseline;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: start;
   gap: var(--space-md);
 }
 
+.goal > dt > span { white-space: normal; overflow-wrap: anywhere; }
+
 .goalNumber {
-  font-size: var(--heading-1-font-size);
-  font-weight: var(--heading-1-font-weight);
-  line-height: var(--heading-1-line-height);
+  font-size: var(--body-font-size);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--body-line-height);
   color: color-mix(in srgb, var(--foreground) 80%, var(--primary-text) 20%);
   overflow-wrap: anywhere;
 }
@@ -149,15 +155,18 @@
 }
 
 @container (max-width: 40rem) {
-  .body, .body[data-goal-count="4"] { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto; }
-  .relations, .outcome { grid-column: auto; grid-row: auto; grid-template-rows: none; gap: var(--strategy-card-row-gap); }
+  .body { grid-template-columns: minmax(0, 1fr); row-gap: var(--strategy-card-row-gap); }
   .outcome { border-left: 0; border-top: 1px dashed var(--border); padding-left: 0; padding-top: var(--space-md); }
-  .goals { grid-row: auto; grid-template-rows: none; gap: var(--strategy-card-row-gap); }
   .illustration { display: none; }
+}
+
+:global(html:lang(en)) .relation { --strategy-summary-label-width: 9em; }
+
+@container (max-width: 24rem) {
+  .relation { grid-template-columns: minmax(0, 1fr); gap: var(--space-xs); }
 }
 
 @container (max-width: 36rem) {
   .heading { grid-template-columns: auto minmax(0, 1fr); }
   .headingActions { grid-column: 2; justify-self: end; gap: var(--space-md); }
-  .relations { grid-template-columns: minmax(0, 1fr); }
 }
