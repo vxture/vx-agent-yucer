@@ -2,7 +2,7 @@
   position: relative;
   isolation: isolate;
   overflow: hidden;
-  container-type: inline-size;
+  container: strategy-card / inline-size;
 }
 
 .ambience {
@@ -44,6 +44,11 @@
   min-width: 0;
   align-items: center;
   gap: var(--space-lg);
+}
+
+.adoptionTooltip {
+  width: max-content;
+  max-width: min(var(--container-overlay-xl), calc(100vw - 2 * var(--space-md)));
 }
 
 .owner {
@@ -95,11 +100,13 @@
 }
 
 .relation > :first-child, .goal > dt { display: flex; min-width: 0; align-items: start; }
-.references { display: flex; min-width: 0; flex-wrap: wrap; align-items: start; column-gap: var(--space-md); row-gap: var(--space-sm); }
+.references { position: relative; display: flex; min-width: 0; align-items: start; column-gap: var(--space-md); overflow: hidden; }
 .referenceItem { display: inline-flex; min-width: 0; max-width: 100%; align-items: start; gap: var(--space-xs); font: inherit; }
 .referenceItem > svg { margin-top: calc((1lh - var(--spacing-icon-sm)) / 2); }
-.referenceItem > span { min-width: 0; overflow-wrap: anywhere; }
-.moreReferences { white-space: nowrap; }
+.referenceItem > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.moreReferences { flex: none; white-space: nowrap; }
+.referenceMeasure { position: absolute; visibility: hidden; pointer-events: none; display: flex; width: max-content; max-width: none; }
+.referenceMeasure .referenceItem { flex: none; max-width: none; }
 .referencePreview {
   width: var(--container-overlay-xl);
   max-width: calc(100vw - 2 * var(--space-md));
@@ -158,57 +165,88 @@
   column-gap: var(--strategy-card-section-gap);
 }
 
-.resources {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  align-items: start;
-  gap: var(--space-lg);
-}
-
-.resource, .metric {
+.resourceSection {
   display: grid;
   min-width: 0;
-  grid-template-columns: var(--strategy-summary-label-width, 5em) minmax(0, 1fr);
+  grid-template-columns: max-content minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.resources {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.metric {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: max-content minmax(0, 1fr);
   align-items: start;
   column-gap: var(--space-sm);
   row-gap: var(--space-xs);
 }
 
-.resource > dt { display: flex; align-items: start; }
-.resource > dd, .metric > dd { display: flex; min-width: 0; align-items: start; overflow-wrap: anywhere; }
-.metric { grid-template-columns: max-content minmax(0, 1fr); }
+.resource {
+  display: inline-flex;
+  min-width: 0;
+  max-width: 100%;
+  width: max-content;
+  align-items: stretch;
+  overflow: hidden;
+  border-radius: var(--radius-md);
+}
+
+.resource > dt {
+  display: flex;
+  flex-shrink: 0;
+  min-height: var(--space-control-md);
+  align-items: center;
+  gap: var(--space-xs);
+  padding-inline: var(--space-xs);
+}
+.resource > dd, .metric > dd { display: flex; min-width: 0; overflow-wrap: anywhere; }
+.resource > dd {
+  min-height: var(--space-control-md);
+  align-items: center;
+  padding-inline: var(--space-xs);
+}
+.resource :global([data-quantity-unit]) { color: var(--foreground); }
 
 .metrics {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  align-items: start;
+  align-items: center;
   gap: var(--space-lg);
   min-width: 0;
   border-left: 1px solid color-mix(in srgb, var(--foreground) 6%, transparent);
   padding-left: var(--strategy-card-section-gap);
 }
 
-/* Keep every support label and value on shared rows when space is tight. */
-@container (max-width: 80em) {
-  .resource, .metric { grid-template-columns: minmax(0, 1fr); }
+/* Keep matched-resource labels and values on shared rows when space is tight. */
+@container strategy-card (max-width: 80em) {
+  .metric { grid-template-columns: minmax(0, 1fr); }
 }
 
-@container (max-width: 40rem) {
+@container strategy-card (max-width: 40rem) {
   .body, .footer { grid-template-columns: minmax(0, 1fr); row-gap: var(--strategy-card-row-gap); }
   .outcome, .metrics { border-left: 0; border-top: 1px dashed var(--border); padding-left: 0; padding-top: var(--space-md); }
   .illustration { display: none; }
 }
 
 :global(html:lang(en)) .relation,
-:global(html:lang(en)) .resources { --strategy-summary-label-width: 9em; }
+:global(html:lang(en)) .metric { --strategy-summary-label-width: 9em; }
 
-@container (max-width: 24rem) {
-  .resources { grid-template-columns: minmax(0, 1fr); }
-  .resource { grid-template-columns: var(--strategy-summary-label-width, 5em) minmax(0, 1fr); }
+@container strategy-card (max-width: 24rem) {
+  .resourceSection { grid-template-columns: minmax(0, 1fr); align-items: start; }
   .relation { grid-template-columns: minmax(0, 1fr); gap: var(--space-xs); }
 }
 
-@container (max-width: 36rem) {
+@container strategy-card (max-width: 36rem) {
   .heading { grid-template-columns: auto minmax(0, 1fr); }
-  .headingActions { grid-column: 2; justify-self: end; gap: var(--space-md); }
+  .headingActions { grid-column: 1 / -1; justify-self: end; max-width: 100%; gap: var(--space-sm); }
+  .owner { flex: 0 1 auto; }
 }
