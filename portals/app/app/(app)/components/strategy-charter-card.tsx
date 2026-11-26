@@ -143,7 +143,7 @@ export function StrategyCharterCard({plan:p,currency,actions,draftAvailable}: {
           })}
         </dl>
         <dl className={styles.metrics} data-strategy-metrics>
-          {metrics.map(m=><div key={m.key} className="flex min-w-0 items-center gap-sm" data-strategy-metric>
+          {metrics.map(m=><div key={m.key} className={styles.metric} data-strategy-metric>
             <dt className="truncate text-body text-muted-foreground">{m.label}</dt>
             <dd className="text-body font-medium tabular-nums text-foreground">{m.value==null?<span title={T.unknown} aria-label={T.unknown}>&mdash;</span>:<StrategyQuantity value={m.value.toLocaleString(locale)} unit={m.unit}/>}</dd>
           </div>)}
