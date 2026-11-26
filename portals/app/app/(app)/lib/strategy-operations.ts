@@ -2,6 +2,7 @@ import type { PlanRecord } from "../../domains/strategy/store";
 import { nextPlanStatuses } from "../../domains/strategy/lib/lifecycle";
 
 type OperationPlan = Pick<PlanRecord, "id" | "lineageId" | "basePlanId" | "versionNo" | "status">;
+type OperationRights = { canEdit: boolean; canApprove: boolean };
 export type StrategyOperation = "view" | "edit" | "publish" | "revise" | "resume" | "versions" | "validation" | "active" | "closed" | "archived" | "discard";
 
 function lifecycleOperations(plan: OperationPlan, allowed: boolean): StrategyOperation[] {
@@ -18,11 +19,19 @@ function primaryOperation(actions: readonly StrategyOperation[], editable: boole
 function validStrategyDraft(plan: OperationPlan, latest: OperationPlan | undefined): boolean {
   if (plan.status !== "draft" || plan.versionNo) return false;
   if (!plan.basePlanId) return !latest;
-  return latest != null && plan.basePlanId === latest.id && ["approved", "active"].includes(latest.status);
+  return plan.basePlanId === latest?.id && ["approved", "active"].includes(latest.status);
+}
+
+function draftEditingOperations(editable: boolean, rights: OperationRights): StrategyOperation[] {
+  if (!editable) return [];
+  const actions: StrategyOperation[] = [];
+  if (rights.canEdit) actions.push("edit");
+  if (rights.canApprove) actions.push("publish");
+  return actions;
 }
 
 /** Presentation policy only; domain services independently enforce every write. */
-export function strategyOperations(plan: OperationPlan, plans: readonly OperationPlan[], rights: { canEdit: boolean; canApprove: boolean }) {
+export function strategyOperations(plan: OperationPlan, plans: readonly OperationPlan[], rights: OperationRights) {
   const lineage = plan.lineageId ?? plan.id;
   const family = plans.filter(p => (p.lineageId ?? p.id) === lineage);
   const published = family.filter(p => p.versionNo != null).sort((a, b) => (b.versionNo ?? 0) - (a.versionNo ?? 0));
@@ -31,9 +40,7 @@ export function strategyOperations(plan: OperationPlan, plans: readonly Operatio
   const revisable = latest != null && ["approved", "active"].includes(latest.status);
   const draft = family.find(p => validStrategyDraft(p, latest));
   const editable = validStrategyDraft(plan, latest);
-  const actions: StrategyOperation[] = ["view"];
-  if (rights.canEdit && editable) actions.push("edit");
-  if (rights.canApprove && editable) actions.push("publish");
+  const actions: StrategyOperation[] = ["view", ...draftEditingOperations(editable, rights)];
   if (rights.canEdit && isLatest && revisable) actions.push(draft ? "resume" : "revise");
   if (plan.versionNo) actions.push("validation");
   if (published.length) actions.push("versions");
