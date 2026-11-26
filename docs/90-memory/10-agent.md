@@ -65,6 +65,12 @@ Owner's current C01-C04 instruction: hold all releases and plan version bundles.
 Track signal intelligence, launcher counts, multi-strategy sales-plan drafts and
 regional examples in `docs/70-workplan/135-business-usability-batches.md`.
 
+Owner subsequently instructed "proceed with production release" after reviewing
+the completed C01-C04 report. This authorizes the unified v0.1.143 release from
+2659c04e, including #807 and #808-#811. It supersedes the hold for this reviewed
+bundle only. Future changes still require explicit release authorization;
+production Environment approval remains an owner-only GitHub action.
+
 ## Test-account business content
 
 Owner instruction (2026-11-25): business records added to the authorized
