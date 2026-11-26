@@ -10581,13 +10581,13 @@ export const STRATEGY_CARD_TEXT = {
   "companyPlan": "\u9500\u552e\u89c4\u5212",
   "strategyVersion": "\u6218\u7565",
   "adoption": {
-    "accepted": "\u9500\u552e\u5df2\u627f\u63a5",
-    "scheduled": "\u9500\u552e\u5f85\u751f\u6548",
-    "draft": "\u627f\u63a5\u5f85\u53d1\u5e03",
-    "previous": "\u9500\u552e\u627f\u63a5\u65e7\u7248",
+    "accepted": "\u9500\u552e\u89c4\u5212\u5df2\u627f\u63a5",
+    "scheduled": "\u9500\u552e\u89c4\u5212\u5f85\u751f\u6548",
+    "draft": "\u9500\u552e\u627f\u63a5\u5f85\u53d1\u5e03",
+    "previous": "\u9500\u552e\u89c4\u5212\u627f\u63a5\u65e7\u7248",
     "unpublished": "\u53d1\u5e03\u540e\u53ef\u627f\u63a5",
     "closed": "\u9500\u552e\u627f\u63a5\u5df2\u7ed3\u675f",
-    "pending": "\u9500\u552e\u5f85\u627f\u63a5",
+    "pending": "\u9500\u552e\u89c4\u5212\u5f85\u627f\u63a5",
     "restricted": "\u627f\u63a5\u72b6\u6001\u4e0d\u53ef\u89c1",
     "unavailable": "\u627f\u63a5\u72b6\u6001\u5f85\u67e5\u8be2"
   },

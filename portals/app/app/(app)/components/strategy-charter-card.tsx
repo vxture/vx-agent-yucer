@@ -37,7 +37,6 @@ export function StrategyCharterCard({plan:p,currency,actions,draftAvailable,adop
   const markets=p.targetMarkets?.toSorted((a,b)=>Number(b.intent==="focus")-Number(a.intent==="focus"));
   const offerings=p.solutions===null || p.products===null ? null : strategyOfferings(p.solutions,p.products);
 
-  const sizes=[...new Set(markets?.flatMap(m=>m.criteria.sizes ?? []) ?? [])];
   const valueProposition=p.resultOptions?.find(o=>o.kind==="value" && o.id===p.result?.valuePropositionId);
   const resources=[
     {key:"people",label:R.people,unit:R.peopleUnit},
@@ -72,7 +71,6 @@ export function StrategyCharterCard({plan:p,currency,actions,draftAvailable,adop
             <Tag><span className={!p.strategyType?"text-muted-foreground":undefined} title={`${T.strategyType}: ${p.strategyType?.description || p.strategyType?.name || T.typeUnclassified}`} data-strategy-type>{p.strategyType?.name || T.typeUnclassified}</span></Tag>
             <Tag className="min-w-0 max-w-full"><span className={`truncate ${valueProposition?"":"text-muted-foreground"}`} title={`${R.value}: ${valueProposition?.name || (p.result?.valuePropositionId?C.valueUnavailable:C.valueUnspecified)}`} data-strategy-value>{valueProposition?.name || (p.result?.valuePropositionId?C.valueUnavailable:C.valueUnspecified)}</span></Tag>
             <Tag tone={p.status==="active"?"success":"neutral"}>{PLAN_STATUS_LABEL[p.status]}{p.versionNo ? ` V${p.versionNo}` : p.basePlanId ? ` / ${T.revisionDraft}` : ""}</Tag>
-            <StrategyAdoptionTag plan={p} adoption={adoption}/>
             {draftAvailable ? <Tag>{T.draftAvailable}</Tag>:null}
           </div>
           <div className="flex flex-wrap items-center gap-x-lg gap-y-xs text-body-small text-muted-foreground" data-strategy-card-meta>
@@ -84,6 +82,7 @@ export function StrategyCharterCard({plan:p,currency,actions,draftAvailable,adop
           <div className={`${styles.owner} text-body-small text-muted-foreground`} aria-label={T.owner} data-strategy-card-owner>
             <MemberName sub={p.ownerSub} name={p.publishedOwnerName} fallback={T.noOwner}/>
           </div>
+          <StrategyAdoptionTag plan={p} adoption={adoption}/>
           <div className="shrink-0 text-foreground">{actions}</div>
         </div>
       </div>
@@ -98,13 +97,8 @@ export function StrategyCharterCard({plan:p,currency,actions,draftAvailable,adop
           </div>
           <div className={styles.relation} data-strategy-card-relation="markets">
             <StrategyDetailLabel>{T.targetMarketsTitle}</StrategyDetailLabel>
-            <div className={styles.marketSummary}>
-              {sizes.length ? <div className={styles.sizeSummary}><StrategyReferenceSummary kind="sizes" label={C.customerSizes} href={href} rows={sizes.map(name=>({id:name,name}))} maxVisible={2}/></div>:null}
-              <div className={`${styles.segmentSummary} ${sizes.length?styles.segmentDivider:""}`}>
-                {markets?.length ? <StrategyReferenceSummary kind="markets" label={C.segments} href={href} rows={markets.map(m=>({id:m.segmentId,name:m.marketName,icon:"globe",href:`/segment/${encodeURIComponent(m.segmentId)}`}))} maxVisible={1}/>
-                  : <span className="text-muted-foreground">{markets===null?T.unknown:T.marketEmpty}</span>}
-              </div>
-            </div>
+            {markets?.length ? <StrategyReferenceSummary kind="markets" label={C.segments} href={href} rows={markets.map(m=>({id:m.segmentId,name:m.marketName,icon:"globe",href:`/segment/${encodeURIComponent(m.segmentId)}`}))}/>
+              : <span className="text-muted-foreground">{markets===null?T.unknown:T.marketEmpty}</span>}
           </div>
           <div className={styles.relation} data-strategy-card-relation="offerings">
             <StrategyDetailLabel>{T.productSolutionsTitle}</StrategyDetailLabel>

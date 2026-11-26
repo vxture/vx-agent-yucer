@@ -6,6 +6,7 @@ import { useMessages } from "../lib/i18n/provider";
 import type { StrategyAdoptionRead } from "../lib/strategy-adoption-read";
 import { strategyAdoptionStatus } from "../../domains/planning/strategy-adoption";
 import type { StrategyView } from "../lib/market-strategy";
+import styles from "./strategy-charter-card.module.css";
 
 export function StrategyAdoptionTag({ plan, adoption }: { readonly plan: StrategyView; readonly adoption: StrategyAdoptionRead }) {
   const { STRATEGY_CARD_TEXT: T } = useMessages();
@@ -16,7 +17,7 @@ export function StrategyAdoptionTag({ plan, adoption }: { readonly plan: Strateg
     <TooltipTrigger asChild><span tabIndex={0} className="inline-flex min-w-0 max-w-full" data-strategy-adoption={state}>
       <Tag tone={tone}>{T.adoption[state]}</Tag>
     </span></TooltipTrigger>
-    <TooltipContent className="max-w-xs">
+    <TooltipContent className={styles.adoptionTooltip}>
       <p>{T.adoptionHint[state]}</p>
       {rows.map(r => <p key={`${r.revisionId}:${r.strategyId}`} className="text-body-small">
         {r.year} {T.companyPlan}{r.planVersion ? ` V${r.planVersion}` : ""}{" / "}{T.strategyVersion} V{r.strategyVersion}{" / "}{T.planState[r.state]}

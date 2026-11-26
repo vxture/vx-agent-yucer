@@ -46,6 +46,11 @@
   gap: var(--space-lg);
 }
 
+.adoptionTooltip {
+  width: max-content;
+  max-width: min(var(--container-overlay-xl), calc(100vw - 2 * var(--space-md)));
+}
+
 .owner {
   min-width: 0;
   max-width: 18ch;
@@ -102,10 +107,6 @@
 .moreReferences { flex: none; white-space: nowrap; }
 .referenceMeasure { position: absolute; visibility: hidden; pointer-events: none; display: flex; width: max-content; max-width: none; }
 .referenceMeasure .referenceItem { flex: none; max-width: none; }
-.marketSummary { display: flex; min-width: 0; align-items: start; gap: var(--space-md); }
-.sizeSummary { flex: 0 1 auto; min-width: 0; max-width: 45%; }
-.segmentSummary { flex: 1 1 0; min-width: 0; }
-.segmentDivider { border-left: 1px solid var(--border); padding-left: var(--space-md); }
 .referencePreview {
   width: var(--container-overlay-xl);
   max-width: calc(100vw - 2 * var(--space-md));
@@ -216,5 +217,6 @@
 
 @container (max-width: 36rem) {
   .heading { grid-template-columns: auto minmax(0, 1fr); }
-  .headingActions { grid-column: 2; justify-self: end; gap: var(--space-md); }
+  .headingActions { grid-column: 1 / -1; justify-self: end; max-width: 100%; gap: var(--space-sm); }
+  .owner { flex: 0 1 auto; }
 }
