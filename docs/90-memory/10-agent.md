@@ -82,6 +82,18 @@ acceptance in workplan 135. Arda external ingestion remains unconfigured and
 unverified. This authorization covers the reviewed patch only; future changes
 still require explicit owner release confirmation.
 
+The owner subsequently instructed "continue this release" for the reviewed
+home and strategy bundle (workplans 139, 140, 141, 142, 143 and 145; PRs
+#815-#822). The owner personally approved database run 45816301415 and
+application run 45817978741. Increment 0140 applied successfully (1 applied,
+140 already recorded). v0.1.145 / 215f206b / production is deployed; registry
+identity, deployment logs and live health agree. Real signed-in acceptance is
+pending renewal of the expired browser session; do not claim it has passed.
+Workplan 146 records the release checklist. Resource-readiness workplan 144
+remains design-only (RR-02 through RR-05 unimplemented); planned resource
+demand is not an actual-arrival fraction. This authorization covers the
+reviewed v0.1.145 bundle only, not subsequent fixes or releases.
+
 ## Product button hierarchy preference
 
 Owner clarified (2026-11-25): primary page actions use DS 14px typography;
