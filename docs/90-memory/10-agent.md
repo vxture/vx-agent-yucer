@@ -122,10 +122,17 @@ Workplan 148 / PR #827 is merged at d1754efb. DO-00 through DO-07 are
 complete: 50 local browser checks, 3,623 offline tests and 529 real database
 tests; PR/main six required checks and CodeQL passed, PR Sonar gate passed.
 The main external Sonar gate retains the prior E/C baseline, tracked in #684;
-this merge adds one maintainability item and no bug/vulnerability. DO-08 tag
-v0.1.147 has a verified production image and is waiting for owner approval
-at run 45870636983. No DDL/config changes. Do not claim it deployed or the
-live acceptance complete until the owner approves and the run succeeds.
+this merge adds one maintainability item and no bug/vulnerability. The owner
+personally approved production run 45870636983, which completed successfully.
+v0.1.147 / d1754efb / production is deployed; verified image, deployment logs
+and live health agree. Twenty-nine signed-in read-only checks passed across
+all four modules, copilot widths, mobile dark/large text, customer details,
+versioned evidence, historical read-only views, domain year links and the
+legacy forecast entry. No business writes, model calls or DDL/config changes
+were made. Display preferences were restored and the original working tab
+preserved. Workplan 148 records DO-00 through DO-08 as complete, separating
+local, CI and live evidence. This authorization covers the reviewed bundle
+only; subsequent application releases still require explicit owner direction.
 
 Owner instruction (2026-11-26): implement a coherent stage before running the
 full test suite. Small, reversible adjustments receive only the relevant
