@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import links from "./business-reference.module.css";
 import { StrategyInfoCard as Card, StrategyInfoContent as CardContent } from "./strategy-info-card";
 import type { ReactNode } from "react";
 import { Icon, ViewLayout, type IconName } from "@vxture/design-ui";
@@ -71,7 +72,7 @@ export function MarketDetail({ market, canWrite, at }: {
     <Section title={T.productSolutionsTitle} icon="squares-four" help={T.marketDefaultSolutionsHint}>
       {offerings.length ? <div className={styles.references} data-market-detail-offerings>{offerings.map(row => <Card variant="reference" key={row.key} className="min-w-0">
         <CardContent>
-          <Link href={row.href} className="flex min-w-0 items-start gap-sm text-body font-medium no-underline transition-colors hover:text-primary-text hover:no-underline" title={row.name}>
+          <Link href={row.href} className={`${links.link} flex min-w-0 items-start gap-sm text-body font-medium`} title={row.name}>
             <Icon name={row.icon} size="sm" className="shrink-0 text-muted-foreground" aria-hidden="true" />
             <span className="line-clamp-2 min-w-0 break-words">{row.name}</span>
             <Icon name="arrow-right" size="sm" className="ml-auto shrink-0 text-muted-foreground" aria-hidden="true" />
@@ -89,7 +90,7 @@ export function MarketDetail({ market, canWrite, at }: {
     <Section title={D.strategies} icon="flag" help={D.strategyHelp}>
       {market.plans?.length ? <div className={styles.references} data-market-detail-strategies>{market.plans.map(plan => <Card variant="reference" key={plan.id} className="min-w-0"><CardContent className={layout.rows}>
         <div className="flex min-w-0 items-center gap-sm" data-market-strategy-heading>
-          <Link href={`/strategy/${encodeURIComponent(plan.id)}`} className="flex min-w-0 flex-1 items-center gap-sm text-body font-medium no-underline transition-colors hover:text-primary-text hover:no-underline" title={plan.name}>
+          <Link href={`/strategy/${encodeURIComponent(plan.id)}`} className={`${links.link} flex min-w-0 flex-1 items-center gap-sm text-body font-medium`} title={plan.name}>
             <Icon name="graph" size="sm" className="shrink-0 text-muted-foreground" aria-hidden="true" /><span className="min-w-0 truncate">{plan.name}</span>
           </Link>
           <span className="inline-flex max-w-1/4 shrink-0 items-center gap-xs text-body-small text-muted-foreground" title={strategyPeriodRangeLabel(plan.period) ?? plan.period}><Icon name="calendar" size="xs" className="shrink-0" aria-hidden="true" /><span className="min-w-0 truncate">{strategyPeriodLabel(plan.period)}</span></span>

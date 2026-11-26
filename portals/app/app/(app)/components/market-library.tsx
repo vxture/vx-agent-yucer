@@ -2,6 +2,7 @@
 import { useXiaoyuPageState } from "./use-xiaoyu-page-state";
 
 import Link from "next/link";
+import links from "./business-reference.module.css";
 import { type ReactNode, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Button, Drawer, EmptyState, Icon, Input, NativeSelect, useToast } from "@vxture/design-ui";
@@ -13,7 +14,8 @@ import { FilterSlot, RowActions, SearchSlot, moveItems, useTableSort } from "./t
 import { strategyOfferings } from "../lib/strategy-offerings";
 import { marketSortAccessors } from "../lib/collection-sort";
 import { segmentSummary } from "../../domains/strategy/lib/segment-summary";
-import { LibraryCardFact, MarketOfferingCard } from "./market-offering-card";
+import { LibraryCardFact, LibraryCardField, MarketOfferingCard } from "./market-offering-card";
+import { StrategyReferenceSummary } from "./strategy-reference-summary";
 import { StrategyQuantity } from "./strategy-detail-label";
 import { Tag } from "./tag";
 import { useMessages } from "../lib/i18n/provider";
@@ -26,7 +28,7 @@ function StrategyReferences({ market }: { readonly market: MarketView }) {
   if (market.plans === null) return T.unknown;
   if (!market.plans.length) return T.none;
   return <div className="flex min-w-0 max-w-full flex-col gap-xs">{market.plans.map(p => (
-    <Link key={p.id} className="truncate transition-colors hover:text-primary" href={`/strategy/${p.id}`} title={`${p.name} · ${p.period}`}>{p.name}</Link>
+    <Link key={p.id} className={`${links.textLink} truncate`} href={`/strategy/${p.id}`} title={`${p.name} · ${p.period}`}>{p.name}</Link>
   ))}</div>;
 }
 
@@ -83,28 +85,25 @@ export function MarketLibrary({ markets, canWrite }: { readonly markets: readonl
       const offerings = strategyOfferings(m.defaultSolutions, m.defaultProducts);
       const criteria = [...m.criteria.industries, ...(m.criteria.sizes ?? []), ...m.criteria.regions];
       const need = segmentSummary(m.criteria);
-      return <MarketOfferingCard key={m.id} kind="market" name={m.name} number={m.segmentCode} description={need || T.notProvided}
+      return <MarketOfferingCard key={m.id} kind="market" name={m.name} number={m.segmentCode}
         status={<Tag tone={m.status === "active" ? "success" : "neutral"}>{STRATEGY_TEXT.segmentStatusLabel[m.status]}</Tag>}
-        actions={rowActions(m)} openLabel={T.openMarket} href={`/segment/${encodeURIComponent(m.id)}`}
-        summary={<div className={styles.portrait} data-market-card-portrait>
-          <div className={styles.field}>
-            <span className={styles.label}><Icon name="users" size="xs" aria-hidden="true" />{D.audience}</span>
+        actions={rowActions(m)} href={`/segment/${encodeURIComponent(m.id)}`}
+        summary={<>
+          <LibraryCardField icon="lightbulb" label={F.customerNeed}><p className={`line-clamp-2 ${need ? "" : "text-muted-foreground"}`} title={need || undefined} data-market-card-description>{need || T.notProvided}</p></LibraryCardField>
+          <div data-market-card-portrait>
+          <LibraryCardField icon="users" label={D.audience}>
             <div className="flex min-w-0 flex-wrap items-center gap-xs" data-market-card-audience>
               {criteria.slice(0, 3).map((value, index) => <Tag key={`${index}:${value}`}>{value}</Tag>)}
-              {criteria.length > 3 ? <Link href={`/segment/${encodeURIComponent(m.id)}`} className="text-body-small text-muted-foreground no-underline transition-colors hover:text-primary-text hover:no-underline" title={criteria.slice(3).join(" / ")}>+{criteria.length - 3}</Link> : null}
-              {!criteria.length ? <span className="text-body-small text-muted-foreground">{T.undefined}</span> : null}
+              {criteria.length > 3 ? <Link href={`/segment/${encodeURIComponent(m.id)}`} className={`${links.textLink} text-body-small`} title={criteria.slice(3).join(" / ")}>+{criteria.length - 3}</Link> : null}
+              {!criteria.length ? <span className="text-body text-muted-foreground">{T.undefined}</span> : null}
             </div>
-          </div>
-        </div>}
-        context={<div className={styles.field} data-market-card-offerings>
-          <span className={styles.label}><Icon name="squares-four" size="xs" aria-hidden="true" />{T.productSolutionsTitle}</span>
-          <div className="flex min-w-0 flex-wrap items-center gap-x-lg gap-y-sm">
-            {offerings.slice(0, 2).map(row => <Link key={row.key} href={row.href} className={styles.offering} title={row.name}>
-              <Icon name={row.icon} size="sm" className="shrink-0 text-muted-foreground" aria-hidden="true" /><span className="min-w-0 truncate text-body">{row.name}</span>
-            </Link>)}
-            {!offerings.length && <p className="text-body text-muted-foreground">{m.defaultSolutions == null || m.defaultProducts == null ? T.unknown : T.noPlanSolutions}</p>}
-            {offerings.length > 2 && <Link href={`/segment/${encodeURIComponent(m.id)}`} className="text-body-small text-muted-foreground no-underline transition-colors hover:text-primary-text hover:no-underline">+{offerings.length - 2}</Link>}
-          </div>
+          </LibraryCardField>
+        </div></>}
+        context={<div data-market-card-offerings>
+          <LibraryCardField icon="squares-four" label={T.productSolutionsTitle}>
+            {offerings.length ? <StrategyReferenceSummary rows={offerings.map(row=>({...row,id:row.key}))} label={T.productSolutionsTitle} href={`/segment/${encodeURIComponent(m.id)}`} kind="market-offerings"/>
+              : <p className="text-body text-muted-foreground">{m.defaultSolutions == null || m.defaultProducts == null ? T.unknown : T.noPlanSolutions}</p>}
+          </LibraryCardField>
         </div>}
         facts={<>
           <LibraryCardFact icon="users" label={T.customerCount}><StrategyQuantity value={m.matched ?? "-"} unit={m.matched === null ? undefined : D.customerUnit}/></LibraryCardFact>
@@ -155,7 +154,7 @@ export function MarketLibrary({ markets, canWrite }: { readonly markets: readonl
 }
 
 function marketNameCell(m: MarketView) {
-  return <CollectionTitleCell title={<Link href={`/segment/${encodeURIComponent(m.id)}`} className="no-underline transition-colors hover:text-primary-text hover:no-underline">{m.name}</Link>} description={<span className="flex min-w-0 items-baseline gap-sm"><span className="shrink-0 text-body-small">{m.segmentCode}</span><span className="truncate text-body" data-market-list-summary title={segmentSummary(m.criteria)}>{segmentSummary(m.criteria)}</span></span>} tooltip={[m.name,m.segmentCode].filter(Boolean).join(" / ")} />;
+  return <CollectionTitleCell title={<Link href={`/segment/${encodeURIComponent(m.id)}`} className={`${links.textLink} `}>{m.name}</Link>} description={<span className="flex min-w-0 items-baseline gap-sm"><span className="shrink-0 text-body-small">{m.segmentCode}</span><span className="truncate text-body" data-market-list-summary title={segmentSummary(m.criteria)}>{segmentSummary(m.criteria)}</span></span>} tooltip={[m.name,m.segmentCode].filter(Boolean).join(" / ")} />;
 }
 function marketCriteriaCell(m: MarketView, text: { industry:string; size:string; region:string; unlimited:string; undefined:string }) {
   return <div className="flex min-w-0 flex-col gap-xs" title={`${text.industry}: ${m.criteria.industries.join(" / ") || text.unlimited}; ${text.size}: ${m.criteria.sizes?.join(" / ") || text.unlimited}; ${text.region}: ${m.criteria.regions.join(" / ") || text.unlimited}`}>

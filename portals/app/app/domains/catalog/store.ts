@@ -7,6 +7,8 @@ import { DEFAULT_PRICING_POLICY, type PricingPolicy } from "./lib/pricing-policy
 // an opportunity is; the line lives on the pipeline side and points in.
 
 export interface ProductRecord {
+  /** First recorded entry into sale; legacy publication history stays unknown. */
+  readonly firstPublishedAt?: Date | null;
   novelty?: "existing" | "new" | null;
   id: string;
   workspaceId: string;
@@ -77,6 +79,8 @@ export interface ProductStatusRecord {
 }
 
 export interface SolutionRecord {
+  /** First recorded activation, independent of creation and price dates. */
+  readonly firstPublishedAt?: Date | null;
   novelty?: "existing" | "new" | null;
   id: string;
   workspaceId: string;
@@ -91,6 +95,9 @@ export interface SolutionRecord {
 }
 
 export class SolutionInUseError extends Error {}
+
+export type ProductInput = Omit<ProductRecord, "id" | "workspaceId" | "sortOrder" | "firstPublishedAt">;
+export type SolutionInput = Omit<SolutionRecord, "id" | "workspaceId" | "sortOrder" | "firstPublishedAt">;
 
 export interface SolutionItemRecord {
   id: string;
@@ -204,7 +211,7 @@ export interface CatalogStore {
   // Legacy import/seed calls without a mode deduplicate by business number.
   upsertProduct(
     workspaceId: string,
-    input: Omit<ProductRecord, "id" | "workspaceId" | "sortOrder">,
+    input: ProductInput,
     mode?: BusinessWrite,
   ): Promise<ProductRecord>;
   /** Point the product at another status row. Null when no such product. */
@@ -269,7 +276,7 @@ export interface CatalogStore {
   countProductsByStatusId(workspaceId: string, statusId: string): Promise<number>;
   upsertSolution(
     workspaceId: string,
-    input: Omit<SolutionRecord, "id" | "workspaceId" | "sortOrder">,
+    input: SolutionInput,
     items: readonly Omit<SolutionItemRecord, "id" | "workspaceId" | "solutionId">[],
     mode?: BusinessWrite,
   ): Promise<SolutionRecord>;
@@ -335,6 +342,19 @@ export class InMemoryCatalogStore implements CatalogStore {
   private approvals: DiscountApprovalRecord[] = [];
   private readonly policies = new Map<string, PricingPolicy>();
   private seq = 0;
+  private readonly trackedProductPublications = new Set<string>();
+  private readonly trackedSolutionPublications = new Set<string>();
+
+  private recordProductPublication(row: ProductRecord): ProductRecord {
+    const tracked = this.trackedProductPublications.has(`${row.workspaceId}:${row.id}`);
+    const active = this.statuses.some(s => s.workspaceId === row.workspaceId && s.id === row.statusId && s.statusCode === "active");
+    return tracked && active && !row.firstPublishedAt ? { ...row, firstPublishedAt: new Date() } : row;
+  }
+
+  private recordSolutionPublication(row: SolutionRecord): SolutionRecord {
+    const tracked = this.trackedSolutionPublications.has(`${row.workspaceId}:${row.id}`);
+    return tracked && row.status === "active" && !row.firstPublishedAt ? { ...row, firstPublishedAt: new Date() } : row;
+  }
 
   constructor(
     private readonly solutionInUse?: (workspaceId: string, solutionId: string) => Promise<boolean>,
@@ -360,11 +380,11 @@ export class InMemoryCatalogStore implements CatalogStore {
     lines?: OpportunityLineRecord[];
     approvals?: DiscountApprovalRecord[];
   }): void {
-    if (input.products) this.products = [...input.products];
+    if (input.products) { this.products = [...input.products]; this.trackedProductPublications.clear(); }
     if (input.types) this.types = [...input.types];
     if (input.units) this.units = [...input.units];
     if (input.statuses) this.statuses = [...input.statuses];
-    if (input.solutions) this.solutions = [...input.solutions];
+    if (input.solutions) { this.solutions = [...input.solutions]; this.trackedSolutionPublications.clear(); }
     if (input.items) this.items = [...input.items];
     if (input.prices) this.prices = [...input.prices];
     if (input.lines) this.lines = [...input.lines];
@@ -400,7 +420,7 @@ export class InMemoryCatalogStore implements CatalogStore {
 
   async upsertProduct(
     workspaceId: string,
-    input: Omit<ProductRecord, "id" | "workspaceId" | "sortOrder">,
+    input: ProductInput,
     mode?: BusinessWrite,
   ): Promise<ProductRecord> {
     const at = this.products.findIndex(
@@ -413,7 +433,7 @@ export class InMemoryCatalogStore implements CatalogStore {
         throw new BusinessCodeCollision();
       }
       // The edit follows the UUID; legacy imports still match the number.
-      const next = { ...this.products[at]!, ...input };
+      const next = this.recordProductPublication({ ...this.products[at]!, ...input, firstPublishedAt: this.products[at]!.firstPublishedAt ?? null });
       this.products[at] = next;
       return next;
     }
@@ -423,7 +443,9 @@ export class InMemoryCatalogStore implements CatalogStore {
       0,
       ...this.products.filter((p) => p.workspaceId === workspaceId).map((p) => p.sortOrder),
     );
-    const row: ProductRecord = { id: `prd_${++this.seq}`, workspaceId, sortOrder: tail + 1, ...input };
+    const id = `prd_${++this.seq}`;
+    this.trackedProductPublications.add(`${workspaceId}:${id}`);
+    const row = this.recordProductPublication({ id, workspaceId, sortOrder: tail + 1, ...input, firstPublishedAt: null });
     this.products.push(row);
     return row;
   }
@@ -437,7 +459,7 @@ export class InMemoryCatalogStore implements CatalogStore {
       (p) => p.workspaceId === workspaceId && p.id === productId,
     );
     if (at < 0) return null;
-    const next = { ...this.products[at]!, statusId };
+    const next = this.recordProductPublication({ ...this.products[at]!, statusId });
     this.products[at] = next;
     return next;
   }
@@ -648,7 +670,7 @@ export class InMemoryCatalogStore implements CatalogStore {
 
   async upsertSolution(
     workspaceId: string,
-    input: Omit<SolutionRecord, "id" | "workspaceId" | "sortOrder">,
+    input: SolutionInput,
     items: readonly Omit<SolutionItemRecord, "id" | "workspaceId" | "solutionId">[],
     mode?: BusinessWrite,
   ): Promise<SolutionRecord> {
@@ -659,14 +681,16 @@ export class InMemoryCatalogStore implements CatalogStore {
     if (mode && mode !== "create" && at < 0) throw new BusinessRecordMissing();
     let row: SolutionRecord;
     if (at >= 0) {
-      row = { ...this.solutions[at]!, ...input, solutionCode: this.solutions[at]!.solutionCode };
+      row = this.recordSolutionPublication({ ...this.solutions[at]!, ...input, solutionCode: this.solutions[at]!.solutionCode, firstPublishedAt: this.solutions[at]!.firstPublishedAt ?? null });
       this.solutions[at] = row;
     } else {
       const tail = Math.max(
         0,
         ...this.solutions.filter((x) => x.workspaceId === workspaceId).map((x) => x.sortOrder),
       );
-      row = { id: `sol_${++this.seq}`, workspaceId, sortOrder: tail + 1, ...input };
+      const id = `sol_${++this.seq}`;
+      this.trackedSolutionPublications.add(`${workspaceId}:${id}`);
+      row = this.recordSolutionPublication({ id, workspaceId, sortOrder: tail + 1, ...input, firstPublishedAt: null });
       this.solutions.push(row);
     }
     // REPLACED WHOLE, like opportunity lines. A solution's contents are a set,

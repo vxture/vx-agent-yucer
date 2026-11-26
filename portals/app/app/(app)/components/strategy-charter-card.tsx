@@ -16,6 +16,7 @@ import { StrategyReferenceSummary } from "./strategy-reference-summary";
 import { StrategyAdoptionTag } from "./strategy-adoption-tag";
 import type { StrategyAdoptionRead } from "../lib/strategy-adoption-read";
 import styles from "./strategy-charter-card.module.css";
+import links from "./business-reference.module.css";
 
 const looks: Record<StrategyTheme | "corporate", {icon: IconName; color: string}> = {
   focus:{icon:"target",color:"text-primary-text"},
@@ -98,13 +99,12 @@ export function StrategyCharterCard({plan:p,currency,actions,draftAvailable,adop
     <div className={styles.illustration} style={{maskImage:`url(/assets/strategy/${theme}.svg)`}} aria-hidden="true"/>
     <CardContent className={styles.content}>
       <div className={styles.heading} data-strategy-card-heading>
-        <Icon name={look.icon} size="lg" className={styles.emblem} aria-hidden="true"/>
         <div className="flex min-w-0 flex-col gap-sm">
           <div className="flex flex-wrap items-center gap-sm" data-strategy-card-title>
-            <h3 className="text-heading-1 leading-snug text-foreground"><Link href={href} className="break-words transition-colors hover:text-primary-text focus-visible:text-primary-text">{p.name}</Link></h3>
+            <h3 className="flex min-w-0 text-heading-1 leading-snug text-foreground"><Link href={href} className={`${styles.titleLink} ${links.link}`}><Icon name={look.icon} size="lg" className={styles.emblem} aria-hidden="true"/><span className="min-w-0 break-words">{p.name}</span></Link></h3>
             <StrategyIdentityTags plan={p} draftAvailable={draftAvailable}/>
           </div>
-          <div className="flex flex-wrap items-center gap-x-lg gap-y-xs text-body-small text-muted-foreground" data-strategy-card-meta>
+          <div className={`${styles.identityMeta} flex flex-wrap items-center gap-x-lg gap-y-xs text-body-small text-muted-foreground`} data-strategy-card-meta>
             <span className="inline-flex items-center gap-xs" title={p.previousNumbers?.length ? `${T.previousNumbers}: ${p.previousNumbers.join(" / ")}` : undefined}><Icon name="file-text" size="sm" aria-hidden="true"/>{p.planNo}</span>
             <span className="inline-flex items-center gap-xs tabular-nums" title={strategyPeriodRangeLabel(p.period) ?? undefined}><Icon name="calendar" size="sm" aria-hidden="true"/>{strategyPeriodLabel(p.period)}</span>
           </div>
@@ -147,7 +147,7 @@ export function StrategyCharterCard({plan:p,currency,actions,draftAvailable,adop
               </dd>
             </div>)}
           </dl>
-          {otherGoals.length ? <Link href={href} className="text-body-small text-muted-foreground hover:text-primary-text" title={otherGoals.map(g=>`${g.name} ${Number(g.amount).toLocaleString(locale)} ${g.unit}`).join(" / ")}>+{otherGoals.length} {R.goals}</Link>:null}
+          {otherGoals.length ? <Link href={href} className={`${links.textLink} text-body-small`} title={otherGoals.map(g=>`${g.name} ${Number(g.amount).toLocaleString(locale)} ${g.unit}`).join(" / ")}>+{otherGoals.length} {R.goals}</Link>:null}
         </div>
       </div>
       <div className={styles.footer} data-strategy-support>

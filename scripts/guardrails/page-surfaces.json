@@ -1392,6 +1392,9 @@
     }
   ],
   "preservedControls": {
+    "(app)/components/market-offering-card.tsx": "Owner-reviewed card headings are business navigation, retaining the DS heading role and content-driven height rather than the secondary action typography.",
+    "(app)/components/product-roster.tsx": "The product title opens its price history and inherits the table title typography; it is a business reference, not a secondary operation control.",
+    "(app)/components/solution-roster.tsx": "The solution title opens its details and inherits the table title typography; it is a business reference, not a secondary operation control.",
     "(app)/components/home-overview.tsx": "The owner requires both Today actions to retain the DS xl 32px / 14px size, including the ghost action inside a content card.",
     "(app)/components/xiaoyu-workspace.tsx": "Task navigation contains a multiline goal and status; content controls its height with a DS 32px minimum so rows cannot overlap.",
     "(app)/components/strategy-preview-card.tsx": "Accessible card preview trigger fills the card surface; its height follows content rather than the operation-control height ladder.",

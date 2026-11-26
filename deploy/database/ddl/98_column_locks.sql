@@ -302,6 +302,9 @@ GRANT UPDATE (name, trigger, content, version, status, updated_at)
 
 -- incr/0126 grants catalog-owned product and solution novelty.
 
+-- incr/0141 first_published_at and publication_history_known are trigger-owned
+-- publication facts on product/solution. Never grant their UPDATE to the app.
+
 -- incr/0127 adds member.role_setup_complete and grants its UPDATE after creation.
 
 -- Private memory tables do not exist on the baseline's first pass.

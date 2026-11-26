@@ -118,6 +118,28 @@ validation at meaningful batch boundaries or for a concrete unresolved risk.
 Mandatory repository CI checks still gate each PR head and merge; do not bypass
 or weaken them. Keep progressing without unnecessary stops.
 
+For the current three-library visual iteration, the owner further instructed:
+finish the typography, icon placement and information layout first and show the
+local preview. Wait for visual confirmation before tests or checks; several
+design rounds are expected. Do not open a PR (which automatically runs CI)
+before that confirmation. Rendering the local preview and capturing it for
+review are part of the design work. This does not authorize a release.
+
+The owner approved the subsequent business-link visual rule for the four
+planning modules: neutral text, primary-text icons softened by opacity-muted
+in light mode, opaque primary-text icons in dark mode, and link-hover for
+both on hover or keyboard focus. Keep icon and title in one click target;
+text-only references retain a link cue. This remains part of the same local
+visual review, not authorization for tests, PR CI or release.
+
+The owner subsequently instructed "continue build and release" for workplan
+147's reviewed visuals and first-publication metadata. This authorizes the
+remaining implementation, consolidated validation, PR and unified release.
+The following correction is part of this bundle: all four card headers have
+two information rows, then a dashed divider; product type and list price
+both belong below that divider. Do not ask again for release confirmation
+for this authorized bundle. Production Environment approval stays owner-only.
+
 ## Test-account business content
 
 Owner instruction (2026-11-25): business records added to the authorized
