@@ -2,6 +2,7 @@
 import { useXiaoyuPageState } from "./use-xiaoyu-page-state";
 
 import { ModuleHeadline } from "./module-headline";
+import { SolutionModuleSummary } from "./planning-module-summary";
 import { CollectionHistory, CollectionToolbar } from "./collection-layout";
 import { CollectionTable, CollectionTitleCell } from "./collection-table";
 import { useCollectionView } from "./collection-view-provider";
@@ -61,6 +62,7 @@ export interface SolutionView {
 }
 
 export interface SolutionRosterProps {
+  readonly summaryReads?: { readonly prices: boolean; readonly policy: boolean; readonly solutions: boolean };
   readonly initialSolutionId?: string;
   readonly solutions: readonly SolutionView[];
   readonly products: readonly ProductRecord[];
@@ -92,6 +94,7 @@ const EMPTY_FACTS: SolutionFacts = {
 };
 
 export function SolutionRoster({
+  summaryReads,
   initialSolutionId,
   solutions,
   products,
@@ -354,6 +357,7 @@ export function SolutionRoster({
   return (
     <>
       <ModuleHeadline moduleKey="solution"
+        description={<SolutionModuleSummary input={[solutions, products, facts, !!summaryReads?.prices && !!summaryReads?.policy, !!summaryReads?.solutions]}/>}
         help={<><p>{CATALOG_TEXT.rosterSolutionWhy}</p><p>{CATALOG_TEXT.solutionPricesHint}</p></>}
         create={canWrite ? { href: "/solution/new", label: CATALOG_TEXT.newSolutionEntry } : undefined} />
       {detail ? <SolutionDetails view={detail} products={products} facts={factsOf(detail)} currency={currency}

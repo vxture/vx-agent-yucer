@@ -1,0 +1,15 @@
+.summary { line-height: var(--body-line-height); }
+.summary > span { display: inline-block; max-width: 100%; }
+.figure {
+  display: inline-flex;
+  max-width: 100%;
+  align-items: center;
+  vertical-align: baseline;
+  padding-inline: var(--space-2xs);
+  border-radius: var(--radius-sm);
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  line-height: inherit;
+}
+.figure:focus-visible { outline: var(--border-width-medium) solid var(--ring); outline-offset: var(--space-2xs); }
+.tooltip { width: max-content; max-width: min(var(--container-overlay-xl), calc(100vw - 2 * var(--space-md))); }

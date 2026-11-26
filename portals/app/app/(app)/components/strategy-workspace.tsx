@@ -12,6 +12,7 @@ import { ViewHeader } from "./business-controls";
 import { TitleHelp } from "./title-help";
 import { FilterSlot, RowActions, SearchSlot, useTableSort } from "./table-fittings";
 import { ModuleHeadline } from "./module-headline";
+import { StrategyModuleSummary } from "./planning-module-summary";
 import { CollectionHistory, CollectionToolbar, collectionDrawerWidth } from "./collection-layout";
 import { CollectionTable, CollectionTitleCell } from "./collection-table";
 import { useCollectionView } from "./collection-view-provider";
@@ -243,6 +244,7 @@ export function StrategyWorkspace({ data, view, detailId }: { readonly data: Str
       {detailOperations?.staleDraft?<output className="block text-body-small text-warning-text">{T.staleDraftHint}</output>:null}
       <StrategyDetailBasic plan={detail}/>
       </div></> : <ModuleHeadline moduleKey="strategy" help={T.brief} create={createAction}
+        description={<StrategyModuleSummary plans={data.plans} period={period} adoption={data.adoptions}/>}
         pageActions={{
           more: workspaceItems.length ? <RowActions label={T.workspaceActions} items={workspaceItems} disabled={pending}/> : undefined,
         }} />}

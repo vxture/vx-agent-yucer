@@ -3,6 +3,7 @@
 import { Section } from "./help-section";
 import { DataTable } from "./business-controls";
 import { ModuleHeadline } from "./module-headline";
+import { ProductModuleSummary } from "./planning-module-summary";
 import { CollectionHistory, CollectionToolbar } from "./collection-layout";
 import { CollectionTable, CollectionTitleCell } from "./collection-table";
 import { useCollectionView } from "./collection-view-provider";
@@ -60,6 +61,7 @@ import type { MoveDirection } from "../../domains/shared/ordering";
 // event, not a property of the row, and a 56px cell cannot hold a sentence.
 
 export interface ProductRosterProps {
+  readonly summaryReads?: { readonly prices: boolean; readonly policy: boolean; readonly statuses: boolean };
   readonly products: readonly ProductRecord[];
   readonly types: readonly ProductTypeRecord[];
   /** The status vocabulary - labels, tones and legal moves all read it. */
@@ -86,6 +88,7 @@ const SORT_ON = {
 };
 
 export function ProductRoster({
+  summaryReads,
   units,
   products,
   types,
@@ -400,6 +403,7 @@ export function ProductRoster({
   return (
     <>
       <ModuleHeadline moduleKey="catalog" help={CATALOG_TEXT.rosterLiveWhy}
+        description={<ProductModuleSummary input={[products,statuses,priceByProduct,!!summaryReads?.statuses,!!summaryReads?.prices && !!summaryReads?.policy]}/>}
         create={canWrite ? { href: "/catalog/new", label: CATALOG_TEXT.newProduct } : undefined} />
       <CollectionToolbar
         id="products"

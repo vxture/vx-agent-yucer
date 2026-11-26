@@ -31,8 +31,8 @@ export function ModuleHeadline({
   readonly moduleKey: string;
   /** Which PAGE_BRIEF appears in help; the module key when omitted. */
   readonly brief?: string;
-  /** Only where the line is not ours to write (the upgrade page's own pitch). */
-  readonly description?: string;
+  /** A current business summary, optionally with inline figures. Guidance stays in help. */
+  readonly description?: ReactNode;
   readonly help?: ReactNode;
   /** StatusBadges beside the title - the key figures, toned. */
   readonly tags?: ReactNode;

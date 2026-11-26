@@ -6,6 +6,7 @@ import type { StrategyWorkspaceData } from "../strategy/workspace-data";
 import { useLocale, useMessages } from "../lib/i18n/provider";
 import { MarketLibrary } from "./market-library";
 import { ModuleHeadline } from "./module-headline";
+import { MarketModuleSummary } from "./planning-module-summary";
 import { PageActionButton } from "./page-header-actions";
 import { collectionDrawerWidth } from "./collection-layout";
 import { SegmentAdvicePanel } from "./segment-advice-panel";
@@ -16,6 +17,7 @@ export function MarketWorkspace({ data }: { readonly data: Pick<StrategyWorkspac
   const [checks, setChecks] = useState(false);
   return <ViewLayout className="@container" data-market-workspace>
     <ModuleHeadline moduleKey="segment" help={T.libraryWhy}
+      description={<MarketModuleSummary markets={data.markets}/>}
       create={data.canWriteMarket ? { href: "/segment/new", label: T.newMarket } : undefined} />
     {data.markets ? <MarketLibrary markets={data.markets} canWrite={data.canWriteMarket}
       actions={<PageActionButton onClick={() => setChecks(true)}>{STRATEGY_TEXT.segmentAdviceTitle}
