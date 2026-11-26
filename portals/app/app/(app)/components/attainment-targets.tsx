@@ -289,9 +289,11 @@ export function ExecutionTargetCard({
       value: <Balance row={row} prefix={false} />,
     },
   ];
+  let cardIcon: "user" | "globe" | "flag" = "flag";
+  if (compact) cardIcon = row.scope.startsWith("owner:") ? "user" : "globe";
   return (
     <DeploymentCard
-      icon={compact ? row.scope.startsWith("owner:") ? "user" : "globe" : "flag"}
+      icon={cardIcon}
       title={row.name}
       href={compact && !unallocated ? attainmentHref({ period: row.period, scope: row.scope, planRevision: row.planRevision }) : undefined}
       meta={<><span>{row.period}</span><span>{row.target?.revision ? `V${row.target.revision.version}` : row.target ? T.legacy : T.noTarget}</span><span>{row.currency}</span></>}
@@ -365,7 +367,7 @@ export function ExecutionTargetCard({
           />
         </div>
       }
-      children={
+    >
         <div className="@container flex w-full min-w-0 flex-col gap-md">
           <div data-attainment-summary={!compact || undefined} data-region-metrics={compact || undefined}>
             <DeploymentMetrics items={metrics.map(m => ({ label: m.label, primary: m.key === "target", value: <span className="inline-flex min-w-0 max-w-full flex-wrap items-baseline gap-xs">{m.value}{m.key === "gap" ? coverageNote : null}</span>,
@@ -430,8 +432,7 @@ export function ExecutionTargetCard({
             </div>
           ) : null}
         </div>
-      }
-    />
+    </DeploymentCard>
   );
 }
 

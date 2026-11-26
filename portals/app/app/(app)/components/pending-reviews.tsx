@@ -81,10 +81,7 @@ export function PendingReviews({ rows, summary, overview, filter, datedCount, un
       </div>
     <CollectionToolbar title={heading.title} icon={heading.icon} help={T.help} count={rows.length}
       mode={filter.view === "list" ? { value:view, onChange:setView } : undefined}
-      notice={overview.unclassified || overview.stale ? <div className="flex flex-wrap gap-sm text-body-small text-warning-text">
-        {overview.unclassified ? <Link className={LINK} href={winLossHref(filter,{status:"all",outcome:"all",query:"",reason:"unclassified",view:"list"})}>{T.unclassified} {overview.unclassified}</Link> : null}
-        {overview.stale ? <Link className={LINK} href={winLossHref(filter,{status:"all",outcome:"all",query:"",reason:"stale",view:"list"})}>{T.stale} {overview.stale}</Link> : null}
-      </div> : undefined}
+      notice={<ReviewNotices overview={overview} filter={filter}/>}
       search={<SearchSlot><form onSubmit={e => { e.preventDefault(); navigate({query}); }}><Input type="search" aria-label={T.search} placeholder={T.search} value={query} onChange={e=>setQuery(e.target.value)} disabled={pending}/></form></SearchSlot>}
       onReset={() => navigate({ status:"all",outcome:"all",reason:"",region:"",query:"",dates:"period" })}>
       <NativeSelect wrapperClassName="w-auto" aria-label={T.status} value={filter.status} onChange={e=>navigate({status:e.target.value as WinLossFilter["status"]})} disabled={pending}>
@@ -110,10 +107,24 @@ export function PendingReviews({ rows, summary, overview, filter, datedCount, un
       sort={table.sort} onSortChange={s=>{table.onSortChange(s);paging.resetPage();}} rowActions={menu} columns={reviewColumns(messages, locale)} empty={<EmptyState title={T.noSample} description={T.noSampleHint}/>}/> : null}
     {filter.view === "list" && rows.length ? <PaginationFooter pagination={paging} total={rows.length}/> : null}
     {!rows.length && !(filter.view === "list" && view === "list") ? <EmptyState title={T.noSample} description={T.noSampleHint}/> : null}
-    <Drawer open={!!target} onClose={()=>{if(!dirty || window.confirm(T.leave))setTarget(null);}} width={collectionDrawerWidth.standard} title={target && !target.reviewId && canRecord ? T.record : T.detail} description={target?.name}>
+    <Drawer open={!!target} onClose={()=>{if(!dirty || window.confirm(T.leave))setTarget(null);}} width={collectionDrawerWidth.standard} title={reviewActionTitle(target, canRecord, T)} description={target?.name}>
       {target ? <ReviewPreview key={target.id} row={target} canPlan={canPlan} filter={filter} onDirtyChange={setDirty} onSaved={()=>{setTarget(null);router.refresh();}}/> : null}
     </Drawer>
   </>;
+}
+
+function reviewActionTitle(row: WinLossRow | null, canRecord: boolean, text: ReturnType<typeof useMessages>["WINLOSS_WORKSPACE_TEXT"]) {
+  if (row && !row.reviewId && canRecord) return text.record;
+  return text.detail;
+}
+
+function ReviewNotices({ overview, filter }: Readonly<{ overview: Summary; filter: WinLossFilter }>) {
+  const { WINLOSS_WORKSPACE_TEXT: text } = useMessages();
+  if (!overview.unclassified && !overview.stale) return null;
+  return <div className="flex flex-wrap gap-sm text-body-small text-warning-text">
+    {overview.unclassified ? <Link className={LINK} href={winLossHref(filter, { status: "all", outcome: "all", query: "", reason: "unclassified", view: "list" })}>{text.unclassified} {overview.unclassified}</Link> : null}
+    {overview.stale ? <Link className={LINK} href={winLossHref(filter, { status: "all", outcome: "all", query: "", reason: "stale", view: "list" })}>{text.stale} {overview.stale}</Link> : null}
+  </div>;
 }
 
 function WinLossAnalysis({ summary, filter }: { readonly summary: Summary; readonly filter: WinLossFilter }) {

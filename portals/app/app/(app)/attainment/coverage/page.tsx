@@ -31,10 +31,7 @@ export default async function AttainmentCoveragePage({ searchParams }: {
   if (selection.period === "all") return <EmptyState title={S.choosePeriod}/>;
   const year = Number(selection.period.replace(/^Y/, "").slice(0, 4));
   const periods = offeredPeriods(new Date(Date.UTC(year, 0, 1)));
-  const scopeName = selection.scope.scopeType === "workspace" ? T.company :
-    selection.scope.scopeType === "owner" ? team?.members.find((m) => m.sub === selection.scope.ownerSub)?.name ?? T.personal :
-    data.plans?.flatMap((p) => p.regions).find((r) => r.id === selection.scope.territoryId)?.name ??
-    (data.rawTerritories.ok ? data.rawTerritories.value.find((r) => r.id === selection.scope.territoryId)?.name : null) ?? T.region;
+  const scopeName = coverageScopeName(selection, data, team, T);
   const selectedPlan = await loadAttainmentPlan(year, selection.planRevision);
   if (selection.planRevision && !selectedPlan?.ok) return <EmptyState title={T.contextMissing}/>;
   const back = attainmentHref({ period: selection.period, scope: selection.selection, perspective: selection.perspective, planRevision: selection.planRevision });
@@ -57,4 +54,17 @@ export default async function AttainmentCoveragePage({ searchParams }: {
       </footer>
     </ViewLayout>
   );
+}
+
+function coverageScopeName(
+  selection: ReturnType<typeof resolveAttainmentQuery>,
+  data: NonNullable<Awaited<ReturnType<typeof loadAttainmentBase>>>,
+  team: Awaited<ReturnType<typeof loadAttainmentTeam>>,
+  text: Awaited<ReturnType<typeof getMessages>>["ATTAINMENT_PLAN_TEXT"],
+) {
+  if (selection.scope.scopeType === "workspace") return text.company;
+  if (selection.scope.scopeType === "owner") return team?.members.find(member => member.sub === selection.scope.ownerSub)?.name ?? text.personal;
+  const region = data.plans?.flatMap(plan => plan.regions).find(region => region.id === selection.scope.territoryId);
+  if (region) return region.name;
+  return (data.rawTerritories.ok ? data.rawTerritories.value.find(region => region.id === selection.scope.territoryId)?.name : null) ?? text.region;
 }

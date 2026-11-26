@@ -34,6 +34,6 @@ function SummaryFigure({ item }: { readonly item: BusinessSummaryItem }) {
   let trigger: ReactNode;
   if (item.href) trigger = <TooltipTrigger asChild><Link className={className} aria-label={label} href={item.href}>{item.value}</Link></TooltipTrigger>;
   else if (item.onSelect) trigger = <TooltipTrigger type="button" className={className} data-control-size="preserve" aria-label={label} onClick={item.onSelect}>{item.value}</TooltipTrigger>;
-  else trigger = <TooltipTrigger asChild><span className={className} tabIndex={0} aria-label={label}>{item.value}</span></TooltipTrigger>;
+  else trigger = <TooltipTrigger type="button" className={className} data-control-size="preserve" aria-label={label}>{item.value}</TooltipTrigger>;
   return <Tooltip>{trigger}<TooltipContent className={styles.tooltip}>{item.hint}</TooltipContent></Tooltip>;
 }

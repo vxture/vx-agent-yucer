@@ -1,6 +1,6 @@
 "use client";
 import { useState, type ReactNode } from "react";
-import { Button, EmptyState, Icon, Input, NativeSelect, StatusBadge, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@vxture/design-ui";
+import { Button, EmptyState, Input, NativeSelect, StatusBadge, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@vxture/design-ui";
 import { DeploymentCard, DeploymentField, DeploymentMetrics } from "../components/deployment-card";
 import links from "../components/business-reference.module.css";
 import { Tag } from "../components/tag";

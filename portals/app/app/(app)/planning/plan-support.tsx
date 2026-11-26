@@ -50,6 +50,11 @@ type Props = {
   disabled: boolean;
   lockedPeriods?: readonly string[];
 };
+function customerColumnClass(index: number, count: number) {
+  if (index === 0 || index === count - 1) return "w-table-col-fixed text-center";
+  if (index === 2 || index === 3) return "text-right";
+  return undefined;
+}
 export function PlanSupport({
   content: c,
   regionId,
@@ -398,7 +403,7 @@ export function PlanSupport({
                 ].map((l, i, columns) => (
                   <TableHead
                     key={i}
-                    className={i === 0 || i === columns.length - 1 ? "w-table-col-fixed text-center" : i === 2 || i === 3 ? "text-right" : undefined}
+                    className={customerColumnClass(i, columns.length)}
                   >
                     {i === columns.length - 1 ? T.operations : l}
                   </TableHead>
@@ -711,12 +716,11 @@ export function PlanSupport({
                 {sourceLoading ? T.budgetLoading : T.budgetRetry}
               </Button>
               {sourceMessage ? (
-                <p data-wide
+                <output data-wide
                   className="text-body-small text-muted-foreground"
-                  role="status"
                 >
                   {sourceMessage}
-                </p>
+                </output>
               ) : null}
               <Field>
                 <FieldLabel htmlFor="plan-responsibility">
