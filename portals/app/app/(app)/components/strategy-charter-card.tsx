@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { StrategyInfoCard as Card, StrategyInfoContent as CardContent } from "./strategy-info-card";
 import type { ReactNode } from "react";
-import { Icon, type IconName } from "@vxture/design-ui";
+import { HoverCard, HoverCardContent, HoverCardTrigger, Icon, type IconName } from "@vxture/design-ui";
 import { StrategyDetailLabel, StrategyQuantity } from "./strategy-detail-label";
 import { Tag } from "./tag";
 import { MemberName } from "../lib/member-names";
@@ -22,6 +22,15 @@ const looks: Record<StrategyTheme | "corporate", {icon: IconName; color: string}
   diversify:{icon:"squares-four",color:"text-warning-text"},
   corporate:{icon:"flag",color:"text-primary-text"},
 };
+
+type StrategyReference = {id:string;name:string;href:string;icon?:IconName};
+
+function referenceLink(row: StrategyReference, preview = false) {
+  return <Link key={`${row.icon ?? "market"}:${row.id}`} href={row.href} className={`${styles.referenceItem} transition-colors hover:text-primary-text focus-visible:text-primary-text`} title={row.name}>
+    {row.icon ? <Icon name={row.icon} size="sm" className="shrink-0 text-muted-foreground" aria-hidden="true"/>:null}
+    <span className={preview ? "truncate" : undefined}>{row.name}</span>
+  </Link>;
+}
 
 export function StrategyCharterCard({plan:p,actions,draftAvailable}: {
   readonly plan: StrategyView; readonly actions: ReactNode; readonly draftAvailable: boolean;
@@ -50,14 +59,17 @@ export function StrategyCharterCard({plan:p,actions,draftAvailable}: {
     {key:"customers",label:T.customerCount,unit:D.customerUnit,value:p.customerCount},
     {key:"campaigns",label:T.campaignCount,unit:D.campaignUnit,value:p.campaigns?.length},
   ] as const;
-  const relation=(kind:"markets"|"offerings",title:string,rows:readonly {id:string;name:string;href:string;icon?:IconName}[] | null | undefined,empty:string)=>
+  const relation=(kind:"markets"|"offerings",title:string,rows:readonly StrategyReference[] | null | undefined,empty:string)=>
     <div className={styles.relation} data-strategy-card-relation={kind}>
       <StrategyDetailLabel>{title}</StrategyDetailLabel>
       <div className={styles.references} data-reference-count={Math.min(rows?.length ?? 0,2)}>
-        {rows?.slice(0,2).map(row=><Link key={`${row.icon ?? "market"}:${row.id}`} href={row.href} className={`${styles.referenceItem} transition-colors hover:text-primary-text focus-visible:text-primary-text`} title={row.name}>
-          {row.icon ? <Icon name={row.icon} size="sm" className="shrink-0 text-muted-foreground" aria-hidden="true"/>:null}<span className="min-w-0 truncate">{row.name}</span>
-        </Link>)}
-        {rows && rows.length>2 ? <Link href={href} className={`${styles.moreReferences} text-primary-text tabular-nums`} title={rows.slice(2).map(r=>r.name).join(" / ")}>+{rows.length-2}</Link>:null}
+        {rows?.slice(0,2).map(row=>referenceLink(row))}
+        {rows && rows.length>2 ? <HoverCard openDelay={180} closeDelay={180}>
+          <HoverCardTrigger asChild><Link href={href} className={`${styles.moreReferences} text-primary-text tabular-nums`} aria-label={`${title} +${rows.length-2}`} data-strategy-reference-overflow={kind}>+{rows.length-2}</Link></HoverCardTrigger>
+          <HoverCardContent align="start" side="bottom" className={styles.referencePreview} aria-label={title} data-strategy-reference-preview={kind}>
+            <ul className={styles.referenceList}>{rows.slice(2).map(row=><li key={`${row.icon ?? "market"}:${row.id}`}>{referenceLink(row,true)}</li>)}</ul>
+          </HoverCardContent>
+        </HoverCard>:null}
         {!rows?.length ? <span className={`${styles.referenceText} text-muted-foreground`}>{rows===null?T.unknown:empty}</span>:null}
       </div>
     </div>;
