@@ -134,7 +134,7 @@ export function StrategyCharterCard({plan:p,currency,actions,draftAvailable}: {
         <dl className={styles.resources} data-strategy-resources>
           {resources.map(resource=>{
             const raw=p.result?.resources[resource.key];
-            const amount=raw?.trim() ? Number(raw) : NaN;
+            const amount=raw?.trim() ? Number(raw) : Number.NaN;
             const note=p.result?.resources[`${resource.key}Note`];
             return <div key={resource.key} className={styles.resource} title={note || undefined} data-strategy-resource={resource.key}>
               <dt><StrategyDetailLabel>{resource.label}</StrategyDetailLabel></dt>

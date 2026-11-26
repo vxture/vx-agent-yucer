@@ -54,7 +54,12 @@ export default async function NewPlanPage({
 
   const { no, id } = await searchParams;
   // id is the version identity. Old code links prefer the current draft.
-  const found=id ? rows.find(p=>p.id===id) : no ? rows.find(p=>matchesStrategyNumber(p,no) && p.status==="draft") ?? rows.filter(p=>matchesStrategyNumber(p,no)).sort((a,b)=>(b.versionNo ?? 0)-(a.versionNo ?? 0))[0] : undefined;
+  let candidate=id ? rows.find(p=>p.id===id) : undefined;
+  if (!id && no) {
+    const matching=rows.filter(p=>matchesStrategyNumber(p,no));
+    candidate=matching.find(p=>p.status==="draft") ?? matching.toSorted((a,b)=>(b.versionNo ?? 0)-(a.versionNo ?? 0))[0];
+  }
+  const found=candidate;
   if((no || id) && !found)notFound();
   if(found && found.status !== "draft")redirect(`/strategy/${found.id}`);
 

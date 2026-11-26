@@ -591,7 +591,7 @@ function toPlan(r: Record<string, unknown>): PlanRecord {
     publishedSnapshot:(r.publishedSnapshot as StrategyPublication|null) ?? null,
     createdBySub: (r.createdBySub as string | null) ?? null,
     planNo: String(r.planNo),
-    previousNumbers: ((r.lineageRoot as {numberAliases?:{legacyNo:string}[]} | undefined)?.numberAliases ?? []).map(a=>a.legacyNo).sort(),
+    previousNumbers: ((r.lineageRoot as {numberAliases?:{legacyNo:string}[]} | undefined)?.numberAliases ?? []).map(a=>a.legacyNo).sort(compareIdentifiers),
     name: String(r.name),
     period: String(r.period),
     strategyTypeId: (r.strategyTypeId as string | null) ?? null,
