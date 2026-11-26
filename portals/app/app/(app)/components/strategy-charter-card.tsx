@@ -58,8 +58,8 @@ function StrategyResourceSummary({ plan, currency }: { readonly plan: StrategyVi
         const hasAmount=Number.isFinite(amount);
         const note=plan.result?.resources[`${resource.key}Note`];
         return <div key={resource.key} className={styles.resource} title={note || undefined} data-strategy-resource={resource.key}>
-          <dt className="bg-primary-muted-active text-body-small font-normal text-foreground"><Icon name={resource.icon} size="xs" className="shrink-0 text-primary-text" aria-hidden="true"/>{resource.label}</dt>
-          <dd className={`min-w-0 bg-primary-muted-strong text-body tabular-nums text-foreground ${hasAmount?"font-medium":"font-normal"}`}>{hasAmount?<StrategyQuantity value={amount.toLocaleString(locale,{maximumFractionDigits:2})} unit={resource.unit}/>:<span className="text-body-small font-normal text-foreground">{T.resourceUnspecified}</span>}</dd>
+          <dt className="bg-info-muted-active text-body-small font-normal text-foreground"><Icon name={resource.icon} size="xs" className="shrink-0 text-info-text" aria-hidden="true"/>{resource.label}</dt>
+          <dd className={`min-w-0 bg-info-muted-hover text-body tabular-nums text-foreground ${hasAmount?"font-medium":"font-normal"}`}>{hasAmount?<StrategyQuantity value={amount.toLocaleString(locale,{maximumFractionDigits:2})} unit={resource.unit}/>:<span className="text-body-small font-normal text-foreground">{T.resourceUnspecified}</span>}</dd>
         </div>;
       })}
     </dl>
