@@ -71,6 +71,12 @@ the completed C01-C04 report. This authorizes the unified v0.1.143 release from
 bundle only. Future changes still require explicit release authorization;
 production Environment approval remains an owner-only GitHub action.
 
+v0.1.143 is now deployed with owner approval (run 45740803764, 2659c04e).
+Live registration found a signal resolution save failure; the local fix and
+regressions may proceed, but a subsequent application release still requires
+explicit owner confirmation. Track this residual in workplan 135. Do not count
+the live scoring/promotion chain or unconfigured Arda feed as accepted.
+
 ## Test-account business content
 
 Owner instruction (2026-11-25): business records added to the authorized

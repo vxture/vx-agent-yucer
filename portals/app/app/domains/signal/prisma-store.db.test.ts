@@ -1,6 +1,10 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { Client } from "pg";
+import { EMPTY_ENTITLEMENT } from "../../entitlement/types";
+import { permissionsForRoles } from "../../authz/catalog";
+import { unwrap } from "../shared/result";
+import { matchSignalAccount, promoteSignal, registerSignal, rescoreSignal, type SignalContext } from "./service";
 import type { NewSignal } from "./store";
 
 // PrismaSignalStore, against a real Postgres.
@@ -195,6 +199,73 @@ test("resolveSignal returns false when nothing matched", { skip }, async () => {
   } finally {
     await cleanup();
   }
+});
+
+test("manual registration, matching, scoring and promotion preserve evidence through the real store", { skip }, async () => {
+  await cleanup();
+  try {
+    await withPg(seed);
+    const s = await store();
+    const ctx: SignalContext = {
+      workspaceId: WS,
+      sub: "usr_signal_test",
+      holder: { permissions: new Set(permissionsForRoles(["sales_rep"])) },
+      entitlement: { ...EMPTY_ENTITLEMENT, workspace_id: WS, product: "yucer", tier: "enterprise" },
+      store: s,
+    };
+    const registered = unwrap(await registerSignal(ctx, {
+      requestId: "signal-service-resolution-test",
+      subject: "Platform renewal discovery",
+      signalType: "intent",
+      companyName: "Signal Test",
+      summary: "Confirm the platform integration scope and budget window.",
+      detectedAt: "2026-08-01",
+    }));
+    const before = registered.signal!;
+    assert.ok(before);
+    const firstScore = unwrap(await rescoreSignal(ctx, before.id, { now: new Date("2026-08-02T00:00:00Z") }));
+    assert.equal(firstScore.signal.status, "scored");
+    assert.equal(firstScore.signal.accountId, null);
+    assert.ok(firstScore.signal.score! > 0);
+    assert.equal(unwrap(await matchSignalAccount(ctx, before.id, ACC)).accountId, ACC);
+    const scored = unwrap(await rescoreSignal(ctx, before.id, { now: new Date("2026-08-02T00:00:00Z") }));
+    assert.equal(scored.signal.status, "scored");
+    assert.ok(scored.signal.score! > 0);
+    const promoted = unwrap(await promoteSignal(ctx, before.id, { companyName: "Signal Test" }));
+    assert.equal(promoted.lead.accountId, ACC);
+    assert.equal(promoted.lead.signalId, before.id);
+    assert.equal(promoted.lead.score, scored.signal.score);
+    assert.equal(promoted.lead.companyName, "Signal Test");
+    assert.equal(promoted.signal.status, "promoted");
+    const after = (await s.getSignal(WS, before.id))!;
+    for (const key of ["source", "sourceRef", "signalType", "subject", "payload", "detectedAt"] as const) {
+      assert.deepEqual(after[key], before[key], `evidence ${key} must remain unchanged`);
+    }
+  } finally { await cleanup(); }
+});
+
+test("resolution snapshots cannot replace scope and each stale resolution field prevents a write", { skip }, async () => {
+  await cleanup();
+  try {
+    await withPg(seed);
+    const s = await store();
+    const created = (await s.recordSignal(WS, newSignal({ payload: { summary: "Original event" } })))!;
+    const expected = { ...created, subject: "Not a query field" };
+    const otherWs = "eeeeeeee-0000-0000-0000-000000000009";
+    const otherId = "eeeeeeee-0000-0000-0000-0000000000ff";
+    assert.equal(await s.resolveSignal(otherWs, created.id, { score: 80 }, expected), false);
+    assert.equal(await s.resolveSignal(WS, otherId, { score: 80 }, expected), false);
+    assert.equal(await s.resolveSignal(WS, created.id, { score: 80, status: "scored" }, expected), true);
+    assert.equal(await s.resolveSignal(WS, created.id, { status: "dismissed" }, expected), false);
+    const current = (await s.getSignal(WS, created.id))!;
+    for (const stale of [{ ...current, accountId: ACC }, { ...current, score: 79 }, { ...current, status: "new" as const }]) {
+      assert.equal(await s.resolveSignal(WS, created.id, { status: "dismissed" }, stale), false);
+    }
+    const after = (await s.getSignal(WS, created.id))!;
+    assert.equal(after.status, "scored");
+    assert.equal(after.score, 80);
+    assert.deepEqual(after.payload, created.payload);
+  } finally { await cleanup(); }
 });
 
 // --- createLead / listLeads / getLead -------------------------------------------------

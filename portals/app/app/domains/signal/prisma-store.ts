@@ -124,7 +124,16 @@ export class PrismaSignalStore implements SignalStore {
       );
     }
 
-    const res = await p.signal.updateMany({ where: { id, workspaceId, ...expected }, data });
+    // A structurally compatible snapshot can carry evidence and scope fields.
+    // Compare only resolution fields; never spread a record into Prisma filters.
+    const res = await p.signal.updateMany({
+      where: {
+        id,
+        workspaceId,
+        ...(expected ? { accountId: expected.accountId, score: expected.score, status: expected.status } : {}),
+      },
+      data,
+    });
     return res.count > 0;
   }
 
