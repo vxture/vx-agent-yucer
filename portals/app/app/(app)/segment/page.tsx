@@ -19,11 +19,11 @@ export default async function SegmentPage({ searchParams }: { readonly searchPar
     return <EmptyState title={SHELL_TEXT.loadFailed} description={loadFailureText(bundle.marketsRead.violations, LOAD_ERROR)} />;
   }
   const { market } = await searchParams;
-  const { markets, canWriteMarket, segmentAdvice, at } = bundle.data;
+  const { markets, canWriteMarket, canPlan, segmentAdvice, at } = bundle.data;
   if (market) {
     const id = resolveMarketId(markets ?? [], market);
     if (!id) notFound();
     redirect(`/segment/${encodeURIComponent(id)}`);
   }
-  return <MarketWorkspace data={{ markets, canWriteMarket, segmentAdvice, at }} />;
+  return <MarketWorkspace data={{ markets, canWriteMarket, canPlan, segmentAdvice, at }} />;
 }

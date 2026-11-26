@@ -30,7 +30,7 @@ function StrategyReferences({ market }: { readonly market: MarketView }) {
   ))}</div>;
 }
 
-export function MarketLibrary({ markets, canWrite, actions }: { readonly markets: readonly MarketView[]; readonly canWrite: boolean; readonly actions?: ReactNode }) {
+export function MarketLibrary({ markets, canWrite }: { readonly markets: readonly MarketView[]; readonly canWrite: boolean }) {
   const { MARKET_STRATEGY_TEXT: T, STRATEGY_TEXT, DATA_TABLE_LABELS, SEGMENT_ERROR, ROW_OPS, TABLE_TOOLBAR_TEXT, SEGMENT_DETAIL_TEXT: D, SEGMENT_FORM_TEXT: F } = useMessages();
   const router = useRouter();
   const [query, setQuery] = useState("");
@@ -135,7 +135,7 @@ export function MarketLibrary({ markets, canWrite, actions }: { readonly markets
       actions={<div className="flex min-w-0 flex-wrap items-center justify-end gap-sm" data-market-compare-actions>{comparing ? <>
         <Button variant="outline" size="xl" className="px-md" disabled={chosen.length<2 || chosen.length>3} title={T.compareLimit} onClick={()=>setCompare(true)}>{T.compareSelected(chosen.length)}</Button>
         <Button variant="ghost" size="xl" className="px-md" onClick={()=>{setComparing(false);setSelected([]);setCompare(false);}}>{T.cancelCompare}</Button>
-      </> : <Button variant="outline" size="xl" className="px-md" disabled={filtered.length<2} onClick={()=>setComparing(true)}>{T.compare}</Button>}{actions}</div>}>
+      </> : <Button variant="outline" size="xl" className="px-md" disabled={filtered.length<2} onClick={()=>setComparing(true)}>{T.compare}</Button>}</div>}>
       <FilterSlot><NativeSelect aria-label={T.status} value={status} onChange={e=>{setStatus(e.target.value);setSelected([]);}}><option value="">{T.allStates}</option>{Object.entries(STRATEGY_TEXT.segmentStatusLabel).map(([k,v])=><option key={k} value={k}>{v}</option>)}</NativeSelect></FilterSlot>
     </CollectionToolbar>
     {live.length || !shelved.length ? render(live) : null}

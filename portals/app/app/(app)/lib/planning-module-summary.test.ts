@@ -13,7 +13,7 @@ const handoff: StrategyAdoption = { strategyId: "v1", lineageId: "strategy", str
 
 test("strategy summary keeps the latest publication beside its draft and requires adoption of that version", () => {
   const plans = [publication, { ...publication, id: "v2", versionNo: 2 },
-    { ...publication, id: "draft", versionNo: null, status: "draft" as const },
+    { ...publication, id: "draft", basePlanId: "v2", versionNo: null, status: "draft" as const },
     { ...publication, id: "closed", lineageId: "closed", status: "closed" as const },
     { ...publication, id: "foreign-period", lineageId: "other", period: "Y2026" }];
   assert.deepEqual(strategyModuleSummary(plans, "Y2027", { state: "ready", rows: [handoff] }),
@@ -74,8 +74,25 @@ test("product price coverage uses current currency and effective time; valid zer
     workspaceId: "w", productId, currency, effectiveAt: new Date(effectiveAt), listPrice: 0, floorPrice: 0, minPrice: 0, supersedesId: null });
   const current = inForceByProduct([price("zero", "CNY", "2026-11-01"), price("future", "CNY", "2027-01-01"),
     price("foreign", "USD", "2026-11-01")], "CNY", Date.parse("2026-11-26"));
-  assert.deepEqual(productModuleSummary(products, statuses, current, true, true), { active: 3, development: 1, priced: 1 });
+  assert.deepEqual(productModuleSummary(products, statuses, current, true, true), { total: 4, active: 3, development: 1, priced: 1 });
   assert.equal(productModuleSummary(products, statuses, current, true, false)?.priced, null);
   assert.equal(productModuleSummary(products, statuses, current, false, true), null);
   assert.equal(productModuleSummary(products, [], current, true, true), null);
+});
+
+test("awaiting-publication count excludes drafts whose published base is no longer valid", () => {
+  const plans = [publication, { ...publication, id: "latest", versionNo: 2 },
+    { ...publication, id: "valid", basePlanId: "latest", versionNo: null, status: "draft" as const },
+    { ...publication, id: "stale", basePlanId: "v1", versionNo: null, status: "draft" as const },
+    { ...publication, id: "initial", lineageId: "initial", versionNo: null, status: "draft" as const },
+    { ...publication, id: "closed", lineageId: "ended", status: "closed" as const },
+    { ...publication, id: "ended-draft", lineageId: "ended", basePlanId: "closed", versionNo: null, status: "draft" as const }];
+  assert.equal(strategyModuleSummary(plans, "", { state: "ready", rows: [] })?.draft, 2);
+});
+
+test("no products in development cannot imply all products are on sale", () => {
+  const statuses = [{ id: "sale", statusCode: "active" }, { id: "old", statusCode: "retired" }, { id: "custom", statusCode: "custom" }];
+  const products = [{ id: "p1", statusId: "sale" }, { id: "p2", statusId: "old" }, { id: "p3", statusId: "custom" }];
+  assert.deepEqual(productModuleSummary(products, statuses, new Map(), true, true), { total: 3, active: 1, development: 0, priced: 0 });
+  assert.deepEqual(productModuleSummary([], statuses, new Map(), true, true), { total: 0, active: 0, development: 0, priced: 0 });
 });

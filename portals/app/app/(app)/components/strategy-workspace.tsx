@@ -21,7 +21,7 @@ import { PageCrumbs } from "./page-crumbs";
 import { StrategyDetailLabel, StrategyQuantity } from "./strategy-detail-label";
 import { MemberName } from "../lib/member-names";
 import { useLocale, useMessages } from "../lib/i18n/provider";
-import { strategyOperations, type StrategyOperation } from "../lib/strategy-operations";
+import { pendingStrategyPlans, strategyOperations, type StrategyOperation } from "../lib/strategy-operations";
 import { PlanAdvicePanel } from "./plan-advice-panel";
 import { SegmentAdvicePanel } from "./segment-advice-panel";
 import { DialogForm } from "./dialog-form";
@@ -36,13 +36,20 @@ import { movePlan, startStrategyRevision, publishStrategyVersion, discardStrateg
 
 export type StrategyTab = "overview" | "validation";
 export function StrategyWorkspace({ data, view, detailId }: { readonly data: StrategyWorkspaceData; readonly view: StrategyTab; readonly detailId?: string }) {
-  const { STRATEGY_DETAIL_TEXT:D, MARKET_STRATEGY_TEXT: T, STRATEGY_CARD_TEXT: C, PLAN_STATUS_LABEL, PLAN_ERROR, DS_LABELS, DATA_TABLE_LABELS, CAMPAIGN_TEXT } = useMessages();
+  const { STRATEGY_DETAIL_TEXT:D, MARKET_STRATEGY_TEXT: T, STRATEGY_CARD_TEXT: C, PLANNING_WORKSPACE_TEXT: W, PLAN_STATUS_LABEL, PLAN_ERROR, DS_LABELS, DATA_TABLE_LABELS, CAMPAIGN_TEXT } = useMessages();
   const locale=useLocale();
   const router=useRouter(), params=useSearchParams();
   const [layout,setLayout]=useCollectionView("cards");
   const [query,setQuery]=useState("");
   const sorted=useTableSort<StrategyView>([],strategySortAccessors);
   const period=params.get("period") ?? "";
+  const draftOnly=view==="overview" && params.get("status")==="draft";
+  const pendingDrafts=pendingStrategyPlans(data.plans ?? []);
+  const showDrafts=(value:boolean)=>{
+    const q=new URLSearchParams(params);q.delete("plan");q.delete("view");
+    if(value)q.set("status","draft");else q.delete("status");
+    setQuery("");router.replace(`/strategy?${q}`,{scroll:false});
+  };
   const setPeriod=(value:string)=>{
     const q=new URLSearchParams(params);q.delete("plan");
     if(value)q.set("period",value);else q.delete("period");
@@ -58,13 +65,13 @@ export function StrategyWorkspace({ data, view, detailId }: { readonly data: Str
   const {toast}=useToast();
   const detail=data.plans?.find(p=>p.id===detailId);
   const planFilter=view==="validation" ? params.get("plan") ?? "" : "";
-  const scopedPlans=view==="overview"?currentStrategyPlans(data.plans ?? []):data.plans?.filter(p=>p.versionNo != null) ?? [];
+  const scopedPlans=view==="overview"?(draftOnly?pendingDrafts:currentStrategyPlans(data.plans ?? [])):data.plans?.filter(p=>p.versionNo != null) ?? [];
   const plans=scopedPlans.filter(p=>(!planFilter || p.id===planFilter) && (!period || p.period===period) && (!query.trim() || `${p.name} ${p.planNo} ${(p.previousNumbers ?? []).join(" ")} ${p.objective ?? ""}`.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase())));
   const allowedView = data.canPlan;
-  useXiaoyuPageState({query:query.slice(0,160),period,plan:planFilter,view:layout});
+  useXiaoyuPageState({query:query.slice(0,160),period,plan:planFilter,view:layout,status:draftOnly?"draft":""});
   const switchView=(next:StrategyTab)=>{
     if(next === view)return;
-    const q=new URLSearchParams(params);q.set("view",next);q.delete("market");q.delete("plan");
+    const q=new URLSearchParams(params);q.set("view",next);q.delete("market");q.delete("plan");q.delete("status");
     start(()=>router.push(`/strategy?${q}`,{scroll:false}));
   };
   const run=async(p:StrategyView,to:string)=>{
@@ -169,6 +176,7 @@ export function StrategyWorkspace({ data, view, detailId }: { readonly data: Str
   const checkButton = <PageActionButton onClick={() => setChecks(true)}>{T.checks}<span className="text-muted-foreground tabular-nums">{checkCount}</span></PageActionButton>;
   const workspaceItems: ActionMenuItem[] = [
     ...views.filter(v=>v.allowed && v.id!==view).map(v=>({id:v.id,label:v.label,icon:v.icon,onSelect:()=>switchView(v.id)})),
+    ...(view==="overview" && data.canPlan ? [{id:"drafts",label:draftOnly?W.allStrategies:`${W.pendingStrategies} ${pendingDrafts.filter(p=>!period||p.period===period).length}`,icon:"file-text" as const,onSelect:()=>showDrafts(!draftOnly)}]:[]),
     ...(data.canPlan || data.canMarkets ? [{id:"checks",label:`${T.checks} ${checkCount}`,icon:"list-checks" as const,onSelect:()=>setChecks(true)}]:[]),
     ...(data.canConfigure ? [{id:"settings",label:C.systemSettings,icon:"settings" as const,onSelect:()=>router.push("/admin/strategy")}]:[]),
   ];
@@ -180,8 +188,9 @@ export function StrategyWorkspace({ data, view, detailId }: { readonly data: Str
   const overview=<>
     <CollectionToolbar title={activeView.label} icon={activeView.icon} mode={{value:layout,onChange:setLayout}}
       count={plans.length}
+      notice={draftOnly?<Tag tone="warning">{W.pendingOnly}</Tag>:undefined}
       search={<SearchSlot><Input type="search" aria-label={T.searchPlans} placeholder={T.searchPlans} value={query} onChange={e=>setQuery(e.target.value)}/></SearchSlot>}
-      onReset={query||period?()=>{setQuery("");setPeriod("");}:undefined}>
+      onReset={query||period||draftOnly?()=>{setQuery("");router.replace("/strategy",{scroll:false});}:undefined}>
       {periodFilter}
     </CollectionToolbar>
     {!plans.length ? <EmptyState title={data.plans?.length?T.noMatches:T.noPlans} description={T.noPlansWhy}/> : <>
@@ -244,7 +253,7 @@ export function StrategyWorkspace({ data, view, detailId }: { readonly data: Str
       {detailOperations?.staleDraft?<output className="block text-body-small text-warning-text">{T.staleDraftHint}</output>:null}
       <StrategyDetailBasic plan={detail}/>
       </div></> : <ModuleHeadline moduleKey="strategy" help={T.brief} create={createAction}
-        description={<StrategyModuleSummary plans={data.plans} period={period} adoption={data.adoptions}/>}
+        description={<StrategyModuleSummary plans={data.plans} period={period} adoption={data.adoptions} onShowDrafts={()=>showDrafts(true)}/>}
         pageActions={{
           more: workspaceItems.length ? <RowActions label={T.workspaceActions} items={workspaceItems} disabled={pending}/> : undefined,
         }} />}
