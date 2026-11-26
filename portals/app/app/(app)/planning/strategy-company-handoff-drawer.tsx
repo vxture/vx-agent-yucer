@@ -34,6 +34,10 @@ export function StrategyCompanyHandoffDrawer({ draft, content, members, year, lo
   const reconciliation = commitmentRevenue(candidate);
   const overAnnual = reconciliation.some(r => r.excess !== null);
   const missingAnnual = candidate.strategyAcceptances.some(x => x.expectation.metric === "revenue" && reconciliation.some(r => r.currency === x.expectation.currency && r.annual === null));
+  let validationMessage = "";
+  if (summary.invalid) validationMessage = C.annualInput;
+  if (overAnnual) validationMessage = C.overAnnual;
+  if (missingAnnual) validationMessage = C.annualRevenueInput;
   const memberOptions = members.map(m => ({ value: m.sub, label: m.name }));
   const update = (x: StrategyAcceptance) => onChange({ ...draft, choices: draft.choices.map(y => y.key === x.key ? x : y) });
   return <Drawer open width="md" className="max-w-full" title={T.accept} description={`Y${year}`} closeLabel={T.closeDetails} onClose={onClose}
@@ -47,7 +51,7 @@ export function StrategyCompanyHandoffDrawer({ draft, content, members, year, lo
         <p className="text-body-small text-muted-foreground">{C.noAutomatic}</p>
         <CommitmentRevenue content={candidate} draft/>
         <p className="text-body-small text-muted-foreground">{C.countsSeparate}</p>
-        {summary.invalid || overAnnual || missingAnnual ? <p role="alert" className="text-body-small text-destructive">{missingAnnual ? C.annualRevenueInput : overAnnual ? C.overAnnual : C.annualInput}</p> : null}
+        {validationMessage ? <p role="alert" className="text-body-small text-destructive">{validationMessage}</p> : null}
       </div>
       {groups.map(group => {
         const rows = draft.choices.filter(x => x.strategyId === group.strategyId).sort((a, b) => ACCEPTANCE_METRICS.indexOf(a.expectation.metric) - ACCEPTANCE_METRICS.indexOf(b.expectation.metric));

@@ -30,15 +30,22 @@ export function CommitmentSupport({ content, regionId, revisionId, draft, canAtt
   const customerLink = focusHref({year:content.year, revisionId, regionId, period});
   const evidenceLink = canAttainment && !draft && revisionId ? attainmentCoverageHref({period, scope:regionId ? `territory:${regionId}` : "workspace", planRevision:revisionId, evidence:"open"}) : null;
   const value = (n: string | null) => n === null ? T.missing : Number(n).toLocaleString(locale, { maximumFractionDigits: 2 });
+  const newCustomerUnit = summary.newCustomers === null ? "" : ` ${T.customerUnit}`;
+  const pipelineCurrency = summary.pipeline?.currency ? ` ${summary.pipeline.currency}` : "";
   const items = [
     {label:T.customers, value:`${summary.customers} ${T.customerUnit}`, href:revisionId && canCustomers ? customerLink : null},
-    {label:T.newCustomers, value:`${value(summary.newCustomers)}${summary.newCustomers === null ? "" : ` ${T.customerUnit}`}`, href:null},
-    {label:T.pipeline, value:`${value(summary.pipeline?.target ?? null)}${summary.pipeline?.currency ? ` ${summary.pipeline.currency}` : ""}`, href:summary.pipeline?.target != null ? evidenceLink : null},
+    {label:T.newCustomers, value:`${value(summary.newCustomers)}${newCustomerUnit}`, href:null},
+    {label:T.pipeline, value:`${value(summary.pipeline?.target ?? null)}${pipelineCurrency}`, href:summary.pipeline?.target != null ? evidenceLink : null},
     {label:T.special, value:`${summary.specialTargets} ${T.targetUnit}`, href:null, onClick:summary.specialTargets ? onShowHandoff : undefined},
     {label:T.actions, value:`${summary.datedActions.toLocaleString(locale)}/${summary.actions.toLocaleString(locale)}`, href:null},
   ];
   return <div className="flex min-w-0 flex-wrap items-center gap-x-lg gap-y-sm border-t border-dashed border-border pt-md text-body-small" data-commitment-support>
     <Tooltip><TooltipTrigger className="text-muted-foreground" aria-label={T.supportHelp}>{T.support}</TooltipTrigger><TooltipContent className="max-w-sm">{T.supportHelp}{" "}{T.countHelp}</TooltipContent></Tooltip>
-    {items.map(item => <span key={item.label} className="inline-flex items-baseline gap-xs"><span className="text-muted-foreground">{item.label}</span>{item.onClick ? <Button size="sm" variant="ghost" className={`${links.textLink} text-body-small`} onClick={item.onClick}>{item.value}</Button> : item.href ? <Link className={links.textLink} href={item.href}>{item.value}</Link> : <span>{item.value}</span>}</span>)}
+    {items.map(item => {
+      let detail = <span>{item.value}</span>;
+      if (item.href) detail = <Link className={links.textLink} href={item.href}>{item.value}</Link>;
+      if (item.onClick) detail = <Button size="sm" variant="ghost" className={`${links.textLink} text-body-small`} onClick={item.onClick}>{item.value}</Button>;
+      return <span key={item.label} className="inline-flex items-baseline gap-xs"><span className="text-muted-foreground">{item.label}</span>{detail}</span>;
+    })}
   </div>;
 }

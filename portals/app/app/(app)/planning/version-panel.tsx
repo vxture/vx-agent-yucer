@@ -193,6 +193,7 @@ function NativePlanningVersionPanel({
   let draftStateLabel: string = T.draft;
   if (companyEditing) draftStateLabel = W.scopeCompany;
   if (regionalEditing) draftStateLabel = W.scopeRegions;
+  const companyDraftBadge = draftPreview ? T.previewDraft : T.draft;
   const dirty =
     editing && JSON.stringify(c) !== JSON.stringify(state.draft?.content);
   const [diffSection, setDiffSection] = useState("all");
@@ -344,9 +345,17 @@ function NativePlanningVersionPanel({
         setMessage(command.kind === "save" ? T.saved : T.done);
         setConfirm(null);
         setPanel(null);
-        if (afterSave === "publish" || afterSave === "check")
-          await checkDraft(result.plan, afterSave === "publish");
-        if (afterSave === "handoff") setHandoffRequest(value => value + 1);
+        switch (afterSave) {
+          case "publish":
+          case "check":
+            await checkDraft(result.plan, afterSave === "publish");
+            break;
+          case "handoff":
+            setHandoffRequest(value => value + 1);
+            break;
+          default:
+            break;
+        }
         router.refresh();
       } catch {
         setError(E.plan_save_failed!);
@@ -870,7 +879,7 @@ function NativePlanningVersionPanel({
 
                 {!currentRegion && companyRevision ? (
                   <StatusBadge tone={companyEditing ? "warning" : "info"}>
-                    {revision?.state === "draft" && c.releaseScope === "company" ? (draftPreview ? T.previewDraft : T.draft) : `${C.publishedCommitment} V${companyRevision.version}`}
+                    {revision?.state === "draft" && c.releaseScope === "company" ? companyDraftBadge : `${C.publishedCommitment} V${companyRevision.version}`}
                   </StatusBadge>
                 ) : null}
                 {currentRegion ? (
@@ -1176,7 +1185,7 @@ function NativePlanningVersionPanel({
         </div>}>
         <div className="flex flex-col gap-lg pb-3xl text-body">
           {state.draft?.content.releaseScope === "regions" ? <><p className="font-medium">{C.regionDraft}</p><p>{C.regionConflict}</p></> : <p>{C.beginHelp}</p>}
-          {dirty ? <p role="status" className="text-warning">{T.saveFirst}</p> : null}
+          {dirty ? <output className="text-warning">{T.saveFirst}</output> : null}
         </div>
       </Drawer>
       {canEdit &&

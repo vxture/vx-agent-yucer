@@ -17,10 +17,12 @@ export function StrategyAdoptionTag({ plan, adoption }: { readonly plan: Strateg
   const rows = adoption.state === "ready" ? adoption.rows.filter(r => r.lineageId === (plan.lineageId ?? plan.id)) : [];
   const pendingTone = ["pending", "previous"].includes(state) ? "warning" : "neutral";
   const tone = state === "accepted" ? "success" : pendingTone;
-  const years = [...new Set(rows.filter(r => r.strategyId === plan.id && r.state === "current").map(r => r.year))].sort();
+  const years = [...new Set(rows.filter(r => r.strategyId === plan.id && r.state === "current").map(r => r.year))].sort((a, b) => a - b);
+  const extraYears = years.length > 1 ? ` +${years.length - 1}` : "";
+  const yearLabel = years.length ? `Y${years[0]}${extraYears} ` : "";
   return <Tooltip>
     <TooltipTrigger className="inline-flex min-w-0 max-w-full" data-strategy-adoption={state}>
-      <Tag tone={tone}>{years.length ? `Y${years[0]}${years.length > 1 ? ` +${years.length - 1}` : ""} ` : ""}{T.adoption[state]}</Tag>
+      <Tag tone={tone}>{yearLabel}{T.adoption[state]}</Tag>
     </TooltipTrigger>
     <TooltipContent className={styles.adoptionTooltip}>
       <p>{T.adoptionHint[state]}</p>
