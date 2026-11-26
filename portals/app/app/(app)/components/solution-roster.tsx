@@ -5,14 +5,14 @@ import { ModuleHeadline } from "./module-headline";
 import { SolutionModuleSummary } from "./planning-module-summary";
 import { CollectionHistory, CollectionToolbar } from "./collection-layout";
 import { CollectionTable, CollectionTitleCell } from "./collection-table";
+import links from "./business-reference.module.css";
 import { useCollectionView } from "./collection-view-provider";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import {
+  Button,
   EmptyState,
-  Icon,
   Input,
   StatusBadge,
   Tooltip,
@@ -33,11 +33,11 @@ import {
   useTableSort,
   moveItems,
 } from "./table-fittings";
-import { MarketOfferingCard } from "./market-offering-card";
+import { LibraryCardField, LibraryCardPublishedDate, MarketOfferingCard } from "./market-offering-card";
+import { StrategyReferenceSummary } from "./strategy-reference-summary";
 import { Tag } from "./tag";
-import layout from "./strategy-info-card.module.css";
 import { SolutionDetails } from "./solution-details";
-import { ProductPriceValues } from "./product-price-values";
+import { ProductPriceValues, SolutionCardPrices } from "./product-price-values";
 import type { SolutionFacts } from "../lib/solution-prices";
 import { typeFamily, typeLabel } from "../../domains/catalog/lib/type-vocab";
 import { CardsEmpty, TypeFilter } from "./catalog-tool-row";
@@ -176,10 +176,9 @@ export function SolutionRoster({
       header: CATALOG_TEXT.colName,
       cell: (r: SolutionView) => (
         <CollectionTitleCell
-          title={r.solution.name}
+          title={<Button type="button" size="md" variant="ghost" data-control-size="preserve" className={`${links.textLink} ${links.titleButton} h-auto min-h-0 max-w-full border-0 justify-start truncate p-0 hover:bg-transparent`} onClick={() => setDetailId(r.solution.id)}>{r.solution.name}</Button>}
           description={r.solution.solutionCode}
           tooltip={`${r.solution.name} - ${CATALOG_TEXT.solutionDetailsHint}`}
-          onTitleClick={() => setDetailId(r.solution.id)}
         />
       ),
     },
@@ -322,38 +321,36 @@ export function SolutionRoster({
       description={CATALOG_TEXT.rosterSolutionWhy} />
     : <div className="flex flex-col gap-lg">{sorted.sortRows(rows).map((row) => {
       const { solution, items } = row;
-      const contents = items.map(it => products.find(p => p.id === it.productId)?.name).filter(Boolean).join(" / ");
-      const composition = CATALOG_TEXT.compositionCount(items.filter(it => !it.optional).length, items.filter(it => it.optional).length);
-      const scenario = solution.scenario || solution.summary;
+      const productReferences = [...new Set(items.map(item=>item.productId))].flatMap(id=>{
+        const product=products.find(p=>p.id===id);
+        return product ? [{id:product.id,name:product.name,icon:"cube" as const}] : [];
+      });
+      const standardCount = items.filter(it => !it.optional).length;
+      const optionalCount = items.filter(it => it.optional).length;
       const markets = marketsBySolution[solution.id] ?? [];
-      const primaryPrice = factsOf(row).prices.listPrice;
-      const unpriced = factsOf(row).missing.listPrice;
+      const pricing = factsOf(row);
       return <MarketOfferingCard key={solution.id} kind="solution" name={solution.name} number={solution.solutionCode}
+        metadata={<LibraryCardPublishedDate date={solution.firstPublishedAt ?? null}/>}
+        titleTags={<>
+          <Tag>{CATALOG_TEXT.standardProductCount(standardCount)}</Tag>
+          {optionalCount > 0 ? <Tag>{CATALOG_TEXT.optionalProductCount(optionalCount)}</Tag> : null}
+        </>}
         status={<StatusBadge tone="success">{CATALOG_TEXT.typeEffectiveBadge}</StatusBadge>}
-        actions={rowActions(row)} openLabel={ROW_OPS.details(CATALOG_TEXT.solutionNoun)} onOpen={() => setDetailId(solution.id)}
+        actions={rowActions(row)} onOpen={() => setDetailId(solution.id)}
         summary={<>
-          <div className={layout.field}><span className="inline-flex items-center gap-xs text-body-small text-muted-foreground"><Icon name="ticket" size="xs" aria-hidden="true" />{CATALOG_TEXT.colScenario}</span><p className="line-clamp-2 text-body" title={scenario ?? undefined}>{scenario || "-"}</p></div>
-          {solution.scenario && solution.summary && solution.summary !== scenario && <div className={layout.field}><span className="inline-flex items-center gap-xs text-body-small text-muted-foreground"><Icon name="lightbulb" size="xs" aria-hidden="true" />{CATALOG_TEXT.solutionSummary}</span><p className="line-clamp-2 text-body text-muted-foreground" title={solution.summary}>{solution.summary}</p></div>}
+          <LibraryCardField icon="lightbulb" label={CATALOG_TEXT.solutionSummary}><p className={`line-clamp-2 ${solution.summary ? "" : "text-muted-foreground"}`} title={solution.summary || undefined}>{solution.summary || CATALOG_TEXT.noScenario}</p></LibraryCardField>
+          <LibraryCardField icon="ticket" label={CATALOG_TEXT.colScenario}><p className={`line-clamp-2 ${solution.scenario ? "" : "text-muted-foreground"}`} title={solution.scenario || undefined}>{solution.scenario || CATALOG_TEXT.noScenario}</p></LibraryCardField>
+          <div data-solution-card-markets><LibraryCardField icon="target" label={MARKET_STRATEGY_TEXT.targetMarketsTitle}>
+            {markets.length ? <StrategyReferenceSummary rows={markets.map(m=>({...m,icon:"globe" as const,href:`/segment/${encodeURIComponent(m.id)}`}))} label={MARKET_STRATEGY_TEXT.targetMarketsTitle} href={`/solution?solution=${encodeURIComponent(solution.id)}`} kind="solution-markets"/>
+              : <span className="text-muted-foreground">-</span>}
+          </LibraryCardField></div>
         </>}
-        context={<>
-          <div className={layout.field} data-solution-card-markets>
-            <span className="inline-flex items-center gap-xs text-body-small text-muted-foreground"><Icon name="target" size="xs" aria-hidden="true" />{MARKET_STRATEGY_TEXT.targetMarketsTitle}</span><div className="flex min-w-0 flex-wrap items-baseline gap-x-sm gap-y-xs text-body">
-            {markets.slice(0, 2).map(m => <Link key={m.id} href={`/segment/${encodeURIComponent(m.id)}`} className="min-w-0 max-w-full truncate hover:text-primary-text" title={m.name}>{m.name}</Link>)}
-            {markets.length > 2 && <span title={markets.slice(2).map(m => m.name).join(" / ")}>+{markets.length - 2}</span>}
-            {!markets.length ? <span className="text-muted-foreground">-</span> : null}
-          </div></div>
-          <div className={layout.field} data-solution-card-price>
-            <span className="inline-flex items-center gap-xs text-body-small text-muted-foreground"><Icon name="coins" size="xs" aria-hidden="true" />{CATALOG_TEXT.solutionPriceBasis}</span>
-            <span className="inline-flex min-w-0 flex-wrap items-baseline gap-xs text-body" title={unpriced ? CATALOG_TEXT.listTotalPartial(unpriced) : CATALOG_TEXT.solutionUnitHint}>
-              <span className="font-medium tabular-nums">{primaryPrice == null ? CATALOG_TEXT.unpricedShort : primaryPrice.toLocaleString()}</span>
-              {primaryPrice != null ? <span className="text-body-small text-muted-foreground">{currency} / {CATALOG_TEXT.solutionUnit}</span> : null}
-              {unpriced > 0 ? <Icon name="warning" size="xs" className="self-center text-warning-text" aria-label={CATALOG_TEXT.listTotalPartial(unpriced)} /> : null}
-            </span>
-          </div>
-        </>}
-        facts={<div className={layout.field} data-solution-card-products>
-          <span className="inline-flex items-center gap-xs text-body-small text-muted-foreground"><Icon name="cube" size="xs" aria-hidden="true" />{CATALOG_TEXT.colComposition}</span>
-          <div className="flex min-w-0 items-baseline gap-sm"><span className="max-w-1/2 shrink-0 truncate text-body-small text-muted-foreground" title={composition}>{composition}</span><p className="min-w-0 truncate text-body" title={contents || undefined}>{contents || "-"}</p></div>
+        context={<SolutionCardPrices price={pricing.prices} missing={pricing.missing} currency={currency}/>}
+        facts={<div data-solution-card-products>
+          <LibraryCardField icon="cube" label={CATALOG_TEXT.colComposition}>
+            {productReferences.length ? <StrategyReferenceSummary rows={productReferences} label={CATALOG_TEXT.colComposition} href={`/solution?solution=${encodeURIComponent(solution.id)}`} kind="solution-products"/>
+              : <span className="text-muted-foreground">-</span>}
+          </LibraryCardField>
         </div>}
       />;
     })}</div>;

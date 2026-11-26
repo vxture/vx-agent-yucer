@@ -5,6 +5,7 @@ import { StrategyAdvanced } from "./strategy-result-fields";
 import { StrategyDetailBasic, StrategyDetailGoals, StrategyDetailMarkets, StrategyDetailOfferings, StrategyDetailHandoff } from "./strategy-detail-reading";
 
 import Link from "next/link";
+import links from "./business-reference.module.css";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useTransition } from "react";
 import { Button, Card, CardContent, CardHeader, CardTitle, Drawer, EmptyState, FieldError, Icon, Input, NativeSelect, ViewLayout, useToast, type ActionMenuItem } from "@vxture/design-ui";
@@ -136,7 +137,7 @@ export function StrategyWorkspace({ data, view, detailId }: { readonly data: Str
   const money=(n:number,currency:string)=><StrategyQuantity value={n.toLocaleString(locale,{maximumFractionDigits:0})} unit={currency}/>;
   const cardActions=(p:StrategyView)=><RowActions label={T.planActions} items={items(p)} disabled={pending}/>;
   const card = (p: StrategyView) => <StrategyCharterCard key={p.id} plan={p} currency={data.currency} actions={cardActions(p)} adoption={data.adoptions} draftAvailable={!!draftFor(p) && p.status!=="draft"}/>;
-  const planTitle=(p:StrategyView)=><Link href={`/strategy/${p.id}`} className="block truncate transition-colors hover:text-primary-text">{p.name}</Link>;
+  const planTitle=(p:StrategyView)=><Link href={`/strategy/${p.id}`} className={`${links.textLink} block truncate`}>{p.name}</Link>;
   const planCode=(p:StrategyView)=>[p.planNo,strategyPeriodLabel(p.period),p.versionNo ? `V${p.versionNo}` : null].filter(Boolean).join(" \u00b7 ");
   const table=(rows:StrategyView[])=><CollectionTable labels={DATA_TABLE_LABELS} rows={[...sorted.sortRows(rows)]} sort={sorted.sort} onSortChange={sorted.onSortChange} rowKey={p=>p.id} indexStart={1} columns={[
       {id:"name",sortable:true,header:T.strategy,cell:p=><CollectionTitleCell title={planTitle(p)} description={planCode(p)} tooltip={`${p.name} / ${planCode(p)}`}/>},
@@ -297,7 +298,7 @@ export function StrategyWorkspace({ data, view, detailId }: { readonly data: Str
         {versionPlan ? family(versionPlan).sort((a,b)=>(b.versionNo ?? Number.MAX_SAFE_INTEGER)-(a.versionNo ?? Number.MAX_SAFE_INTEGER)).map(p=><Card key={p.id} className="gap-md py-lg">
           <CardHeader><div className="flex flex-wrap items-center justify-between gap-sm"><CardTitle>{p.versionNo?`V${p.versionNo}`:p.basePlanId?T.revisionDraft:T.noPublication}</CardTitle>
             <span className="flex items-center gap-sm"><Tag>{PLAN_STATUS_LABEL[p.status]}</Tag>{isLatest(p)?<Tag>{T.currentVersion}</Tag>:null}</span></div></CardHeader>
-          <CardContent><div className="flex flex-col gap-sm text-body-small"><Link href={`/strategy/${p.id}`} onClick={()=>setVersionPlan(null)} className="font-medium transition-colors hover:text-primary">{p.name}</Link>
+          <CardContent><div className="flex flex-col gap-sm text-body-small"><Link href={`/strategy/${p.id}`} onClick={()=>setVersionPlan(null)} className={`${links.textLink} font-medium`}>{p.name}</Link>
             <span className="text-muted-foreground">{strategyPeriodLabel(p.period)}{p.approvedAt?` \u00b7 ${new Date(p.approvedAt).toLocaleString(locale)}`:""}</span>
             {p.publishedBySub ? <span className="text-muted-foreground">{T.publishedBy} <MemberName sub={p.publishedBySub}/></span>:null}
             {p.changeReason?<p>{p.changeReason}</p>:null}

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import links from "./business-reference.module.css";
 import type { ReactNode } from "react";
 import { Icon } from "@vxture/design-ui";
 import { StrategyInfoCard as Card, StrategyInfoContent as CardContent } from "./strategy-info-card";
@@ -88,7 +89,7 @@ export function StrategySolutionCards({ solutions, products = [], markets, share
         if (scopes.length) marketLabel = scopes.map(m => m.marketName).join(" / ");
         if (shared) marketLabel = T.sharedScope;
         return <Card key={row.key} variant="reference" data-strategy-offering={row.kind}><CardContent className="h-full">
-          <Link href={row.href} className="inline-flex min-w-0 items-start gap-xs text-body font-medium transition-colors hover:text-primary-text"><Icon name={row.icon} size="sm" className="shrink-0 text-muted-foreground" aria-hidden="true"/><span className="line-clamp-2 break-words">{row.name}</span></Link>
+          <Link href={row.href} className={`${links.link} inline-flex min-w-0 items-start gap-xs text-body font-medium`}><Icon name={row.icon} size="sm" className="shrink-0 text-muted-foreground" aria-hidden="true"/><span className="line-clamp-2 break-words">{row.name}</span></Link>
           <div className="flex min-w-0 flex-wrap items-center gap-xs text-body-small text-muted-foreground"><span>{row.kind === "product" ? T.productKind : T.solutionKind}</span><span className="truncate">{row.code}</span>{row.status === "retired" ? <Tag>{T.retiredSolution}</Tag>:null}{row.novelty?<Tag>{R[row.novelty]}</Tag>:null}</div>
           <div className={`mt-auto ${layout.divider}`}><dl data-strategy-offering-market><div className={layout.field}>
             <dt><StrategyDetailLabel>{T.targetMarketsTitle}</StrategyDetailLabel></dt>
@@ -109,7 +110,7 @@ function StrategyMarketCard({ market: m, actions, attributes }: {
   const { STRATEGY_RESULT_TEXT:R, MARKET_STRATEGY_TEXT:T, STRATEGY_TEXT } = useMessages();
   return <Card key={m.segmentId} variant="reference" data-strategy-target-market><CardContent>
       <div className="flex min-w-0 items-start justify-between gap-sm">
-        <Link className="inline-flex min-w-0 items-start gap-xs text-body font-medium transition-colors hover:text-primary-text" href={`/segment/${encodeURIComponent(m.segmentId)}`}><Icon name="globe" size="sm" className="shrink-0 text-muted-foreground" aria-hidden="true"/><span className="line-clamp-2 break-words">{m.marketName}</span></Link>
+        <Link className={`${links.link} inline-flex min-w-0 items-start gap-xs text-body font-medium`} href={`/segment/${encodeURIComponent(m.segmentId)}`}><Icon name="globe" size="sm" className="shrink-0 text-muted-foreground" aria-hidden="true"/><span className="line-clamp-2 break-words">{m.marketName}</span></Link>
         <div className="flex shrink-0 flex-wrap items-center gap-xs"><Tag tone={m.intent === "focus" ? "success" : "neutral"}>{marketIntentLabel(m.intent, T)}</Tag>
           {attributes?.(m)}{m.status && m.status !== "active" ? <Tag>{STRATEGY_TEXT.segmentStatusLabel[m.status]}</Tag> : null}
         </div>
@@ -138,8 +139,8 @@ function MarketOfferings({ market:m }: { readonly market: SelectedMarket }) {
   const unavailable = m.solutions === null || m.products === null;
   const empty = !unavailable && !rows.length;
   return <>
-    {rows.slice(0,2).map(row=><span key={row.key} title={row.name} className="inline-flex min-w-0 max-w-full"><Link href={row.kind === "product" ? `/catalog?product=${encodeURIComponent(row.id)}` : `/solution?solution=${encodeURIComponent(row.id)}`} className="inline-flex min-w-0 items-start gap-xs transition-colors hover:text-primary-text"><Icon name={row.icon} size="sm" className="shrink-0 text-muted-foreground"/><span className="line-clamp-1 break-words">{row.name}</span></Link></span>)}
-    {rows.length>2?<Link href={`/segment/${encodeURIComponent(m.segmentId)}`} className="text-body-small text-muted-foreground hover:text-primary-text">+{rows.length-2}</Link>:null}
+    {rows.slice(0,2).map(row=><span key={row.key} title={row.name} className="inline-flex min-w-0 max-w-full"><Link href={row.kind === "product" ? `/catalog?product=${encodeURIComponent(row.id)}` : `/solution?solution=${encodeURIComponent(row.id)}`} className={`${links.link} inline-flex min-w-0 items-start gap-xs`}><Icon name={row.icon} size="sm" className="shrink-0 text-muted-foreground"/><span className="line-clamp-1 break-words">{row.name}</span></Link></span>)}
+    {rows.length>2?<Link href={`/segment/${encodeURIComponent(m.segmentId)}`} className={`${links.textLink} text-body-small`}>+{rows.length-2}</Link>:null}
     {unavailable ? <span className="text-muted-foreground">{T.unknown}</span> : null}
     {empty ? <span className="text-muted-foreground">{T.noPlanSolutions}</span> : null}
   </>;

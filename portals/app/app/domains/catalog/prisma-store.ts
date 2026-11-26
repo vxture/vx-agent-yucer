@@ -10,12 +10,14 @@ import {
   type PriceDraft,
   type PriceEntryRecord,
   type ProductRecord,
+  type ProductInput,
   type ProductStatusRecord,
   type ProductTypeInput,
   type ProductTypeRecord,
   type ProductUnitRecord,
   type SolutionItemRecord,
   type SolutionRecord,
+  type SolutionInput,
 } from "./store";
 
 // Prisma-backed CatalogStore over yucer_catalog (+ yucer_pipeline.opportunity_line).
@@ -56,6 +58,7 @@ export class PrismaCatalogStore implements CatalogStore {
   }
 
   private toProduct(row: {
+    firstPublishedAt: Date | null;
     novelty?:string|null;
     id: string;
     workspaceId: string;
@@ -68,6 +71,7 @@ export class PrismaCatalogStore implements CatalogStore {
   }): ProductRecord {
     return {
       id: row.id,
+      firstPublishedAt: row.firstPublishedAt,
       workspaceId: row.workspaceId,
       productCode: row.productCode,
       name: row.name,
@@ -88,6 +92,7 @@ export class PrismaCatalogStore implements CatalogStore {
   }
 
   private toSolution(row: {
+    firstPublishedAt: Date | null;
     novelty?:string|null;
     id: string;
     workspaceId: string;
@@ -100,6 +105,7 @@ export class PrismaCatalogStore implements CatalogStore {
   }): SolutionRecord {
     return {
       id: row.id,
+      firstPublishedAt: row.firstPublishedAt,
       workspaceId: row.workspaceId,
       solutionCode: row.solutionCode,
       name: row.name,
@@ -191,7 +197,7 @@ export class PrismaCatalogStore implements CatalogStore {
 
   async upsertProduct(
     workspaceId: string,
-    input: Omit<ProductRecord, "id" | "workspaceId" | "sortOrder">,
+    input: ProductInput,
     mode?: BusinessWrite,
   ): Promise<ProductRecord> {
     const p = await getPrismaClient();
@@ -555,7 +561,7 @@ export class PrismaCatalogStore implements CatalogStore {
 
   async upsertSolution(
     workspaceId: string,
-    input: Omit<SolutionRecord, "id" | "workspaceId" | "sortOrder">,
+    input: SolutionInput,
     items: readonly Omit<SolutionItemRecord, "id" | "workspaceId" | "solutionId">[],
     mode?: BusinessWrite,
   ): Promise<SolutionRecord> {

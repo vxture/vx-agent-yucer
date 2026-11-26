@@ -6,14 +6,16 @@ import { ModuleHeadline } from "./module-headline";
 import { ProductModuleSummary } from "./planning-module-summary";
 import { CollectionHistory, CollectionToolbar } from "./collection-layout";
 import { CollectionTable, CollectionTitleCell } from "./collection-table";
+import links from "./business-reference.module.css";
 import { useCollectionView } from "./collection-view-provider";
 
 import { useState, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { inForceByProduct } from "../../domains/catalog/lib/pricing";
 import { StrategyInfoCard, StrategyInfoContent } from "./strategy-info-card";
-import layout from "./strategy-info-card.module.css";
-import { ProductPriceValues } from "./product-price-values";
+import cardStyles from "./market-offering-card.module.css";
+import { LibraryCardField, LibraryCardHeader, LibraryCardPublishedDate } from "./market-offering-card";
+import { ProductCardPrices, ProductPriceValues } from "./product-price-values";
 import { ProductPricePanel, type ProductPricing } from "./product-price-panel";
 import {
   Button,
@@ -211,8 +213,7 @@ export function ProductRoster({
       sortable: true,
       header: CATALOG_TEXT.colName,
       cell: (r: ProductRecord) => (
-        <CollectionTitleCell title={r.name} description={r.productCode} tooltip={`${r.name} / ${r.productCode}`}
-          onTitleClick={pricing ? () => openHistory(r.id) : undefined} />
+        <CollectionTitleCell title={pricing ? <Button type="button" size="md" variant="ghost" data-control-size="preserve" className={`${links.textLink} ${links.titleButton} h-auto min-h-0 max-w-full border-0 justify-start truncate p-0 hover:bg-transparent`} onClick={() => openHistory(r.id)}>{r.name}</Button> : r.name} description={r.productCode} tooltip={`${r.name} / ${r.productCode}`} />
       ),
     },
     {
@@ -387,15 +388,14 @@ export function ProductRoster({
   const renderLive = () => view === "list" || !live.length ? table(live) : (
     <div className="@container">
       <div className="grid min-w-0 grid-cols-1 gap-lg @2xl:grid-cols-2 @5xl:grid-cols-3" data-product-cards>
-        {sorted.sortRows(live).map((product) => <StrategyInfoCard key={product.id} variant="overview" surface="soft" data-product-card>
-          <StrategyInfoContent>
-            <div className="flex min-w-0 items-start justify-between gap-sm">
-              <CollectionTitleCell title={product.name} description={product.productCode} icon="cube" />
-              <div className="flex shrink-0 items-center gap-xs">{statusBadge(product)}{rowActions(product)}</div>
-            </div>
-            <div className={`flex min-w-0 flex-wrap items-center justify-between gap-sm text-body ${layout.divider}`}>
-              <span className="text-muted-foreground">{[typeNameOf(product.typeId), unitName.get(product.unitId)].filter(Boolean).join(" \u00b7 ")}</span>
-              {pricing ? <ProductPriceValues price={priceByProduct.get(product.id)} currency={pricing.currency} /> : null}
+        {sorted.sortRows(live).map((product) => <StrategyInfoCard key={product.id} variant="overview" surface="soft" className={cardStyles.product} data-product-card>
+          <StrategyInfoContent className={cardStyles.productContent}>
+            <LibraryCardHeader name={product.name} number={product.productCode} icon="cube" metadata={<LibraryCardPublishedDate date={product.firstPublishedAt ?? null}/>} status={statusBadge(product)} actions={rowActions(product)} onOpen={pricing ? ()=>openHistory(product.id) : undefined}/>
+            <div className={cardStyles.productBody} data-product-card-body>
+              <div className={cardStyles.productDetails}>
+                <LibraryCardField icon="squares-four" label={CATALOG_TEXT.colType}><span className="block truncate" title={typeNameOf(product.typeId)}>{typeNameOf(product.typeId) || "\u2014"}</span></LibraryCardField>
+              </div>
+              {pricing ? <ProductCardPrices price={priceByProduct.get(product.id)} currency={pricing.currency} unit={unitName.get(product.unitId)}/> : null}
             </div>
           </StrategyInfoContent>
         </StrategyInfoCard>)}

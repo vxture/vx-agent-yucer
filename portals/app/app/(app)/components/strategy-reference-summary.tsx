@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useLayoutEffect, useRef, useState } from "react";
 import { HoverCard, HoverCardContent, HoverCardTrigger, Icon, type IconName } from "@vxture/design-ui";
 import styles from "./strategy-charter-card.module.css";
+import links from "./business-reference.module.css";
 
 export type StrategyReference = { id: string; name: string; href?: string; icon?: IconName };
 
@@ -12,7 +13,7 @@ function ReferenceContent({ row }: { readonly row: StrategyReference }) {
 }
 
 function Reference({ row }: { readonly row: StrategyReference }) {
-  const className = `${styles.referenceItem} transition-colors hover:text-primary-text focus-visible:text-primary-text`;
+  const className = `${styles.referenceItem} ${row.icon ? links.link : links.textLink}`;
   return row.href ? <Link href={row.href} className={className} title={row.name}><ReferenceContent row={row}/></Link>
     : <span className={styles.referenceItem} title={row.name}><ReferenceContent row={row}/></span>;
 }
@@ -50,7 +51,7 @@ export function StrategyReferenceSummary({ rows, label, href, kind }: {
   return <div ref={root} className={styles.references} data-strategy-reference-summary={kind} data-reference-count={visible}>
     {rows.slice(0, visible).map(row => <Reference key={row.id} row={row}/>)}
     {hidden.length ? <HoverCard openDelay={180} closeDelay={180}>
-      <HoverCardTrigger asChild><Link href={href} className={`${styles.moreReferences} text-primary-text tabular-nums`} aria-label={`${label} +${hidden.length}`} data-strategy-reference-overflow={kind}>+{hidden.length}</Link></HoverCardTrigger>
+      <HoverCardTrigger asChild><Link href={href} className={`${styles.moreReferences} ${links.textLink} tabular-nums`} aria-label={`${label} +${hidden.length}`} data-strategy-reference-overflow={kind}>+{hidden.length}</Link></HoverCardTrigger>
       <HoverCardContent align="start" side="bottom" className={styles.referencePreview} aria-label={label} data-strategy-reference-preview={kind}>
         <ul className={styles.referenceList}>{hidden.map(row => <li key={row.id}><Reference row={row}/></li>)}</ul>
       </HoverCardContent>

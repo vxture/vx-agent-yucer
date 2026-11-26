@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import links from "./business-reference.module.css";
 import { useState } from "react";
 import { EmptyState, Input, NativeSelect, TableTitleCell, useListPagination } from "@vxture/design-ui";
 import type { MarketView } from "../lib/market-strategy";
@@ -36,7 +37,7 @@ export function MarketCustomers({ market }: { readonly market: MarketView }) {
     </div>
     <DataTable className="[&_tbody]:text-body" labels={DATA_TABLE_LABELS} rows={pagination.pageRows} rowKey={a => a.id} indexStart={pagination.indexStart}
       columns={[
-        { id: "name", header: T.customerName, align: "left", width: "md", cell: a => <TableTitleCell title={<Link href={`/account/${encodeURIComponent(a.id)}`} className="no-underline transition-colors hover:text-primary-text hover:no-underline">{a.name}</Link>} description={a.accountNo} /> },
+        { id: "name", header: T.customerName, align: "left", width: "md", cell: a => <TableTitleCell title={<Link href={`/account/${encodeURIComponent(a.id)}`} className={`${links.textLink} `}>{a.name}</Link>} description={a.accountNo} /> },
         { id: "industry", header: T.industry, align: "left", width: "sm", cell: a => <span className="line-clamp-2" title={a.industry ?? undefined}>{a.industry || "-"}</span> },
         { id: "size", header: T.size, width: "xs", cell: a => a.customerSize || "-" },
         { id: "region", header: T.region, width: "xs", cell: a => a.region || "-" },

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import links from "./business-reference.module.css";
 import { StrategyInfoCard as Card, StrategyInfoContent as CardContent } from "./strategy-info-card";
 import { Children, type ReactNode, type ComponentProps } from "react";
 import { Button, Collapsible, CollapsibleContent, CollapsibleTrigger, Icon, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@vxture/design-ui";
@@ -73,12 +74,12 @@ export function StrategyDetailMarkets({ plan:p, actions }: { readonly plan:Strat
           {[...facts,...context,{label:T.customerCount,value:<StrategyQuantity value={m.matched ?? T.unknown} unit={m.matched==null?undefined:D.customerUnit}/>}].map(f=><div key={f.label} className={styles.previewFact}><dt><StrategyDetailLabel>{f.label}</StrategyDetailLabel></dt><dd>{f.value}</dd></div>)}
         </dl>
         <div className="flex flex-col gap-sm border-t border-dashed border-border pt-md"><StrategyDetailLabel>{T.productSolutionsTitle}</StrategyDetailLabel><div className={styles.previewLinks}>
-          {offerings.map(row=><Link key={row.key} href={row.href} className="transition-colors hover:text-primary-text"><Icon name={row.icon} size="sm" className="shrink-0 text-muted-foreground"/><span>{row.name}</span></Link>)}
+          {offerings.map(row=><Link key={row.key} href={row.href} className={links.link}><Icon name={row.icon} size="sm" className="shrink-0 text-muted-foreground"/><span>{row.name}</span></Link>)}
           {!offerings.length?<p className="text-muted-foreground">{m.products===null||m.solutions===null?T.unknown:T.noPlanSolutions}</p>:null}
         </div></div>
       </>;
       return <StrategyPreviewCard key={m.segmentId} title={m.marketName} detail={detail} className="min-w-0 gap-0" data-strategy-target-market><CardContent className="flex-1">
-        <div className="flex min-w-0 items-start justify-between gap-sm"><Link href={`/segment/${encodeURIComponent(m.segmentId)}`} className="inline-flex min-w-0 items-start gap-sm text-body font-medium no-underline transition-colors hover:text-primary-text hover:no-underline"><Icon name="globe" size="sm" className="shrink-0 text-muted-foreground" aria-hidden="true"/><span className="line-clamp-2 break-words">{m.marketName}</span></Link><div className="flex shrink-0 flex-col items-end gap-xs"><Tag tone={m.intent==="focus"?"success":"neutral"}>{marketIntentLabel(m.intent, T)}</Tag>{m.status!=="active"?<Tag>{S.segmentStatusLabel[m.status]}</Tag>:null}</div></div>
+        <div className="flex min-w-0 items-start justify-between gap-sm"><Link href={`/segment/${encodeURIComponent(m.segmentId)}`} className={`${links.link} inline-flex min-w-0 items-start gap-sm text-body font-medium`}><Icon name="globe" size="sm" className="shrink-0 text-muted-foreground" aria-hidden="true"/><span className="line-clamp-2 break-words">{m.marketName}</span></Link><div className="flex shrink-0 flex-col items-end gap-xs"><Tag tone={m.intent==="focus"?"success":"neutral"}>{marketIntentLabel(m.intent, T)}</Tag>{m.status!=="active"?<Tag>{S.segmentStatusLabel[m.status]}</Tag>:null}</div></div>
         <dl className={layout.rows} data-strategy-market-facts>{facts.map(f=><div key={f.label} className={styles.referenceFact}><dt><StrategyDetailLabel>{f.label}</StrategyDetailLabel></dt><dd className="line-clamp-2 break-words text-body">{f.value}</dd></div>)}</dl>
         {context.slice(0,2).map(f=><div key={f.label} className={styles.referenceFact}><StrategyDetailLabel>{f.label}</StrategyDetailLabel><p className="line-clamp-2 min-w-0 whitespace-pre-wrap break-words text-body text-muted-foreground">{f.value}</p></div>)}
         <div className={`mt-auto flex min-w-0 flex-wrap items-center justify-between gap-sm ${layout.divider}`}><span className="inline-flex items-center gap-xs"><StrategyDetailLabel>{T.customerCount}</StrategyDetailLabel><StrategyQuantity value={m.matched ?? T.unknown} unit={m.matched==null?undefined:D.customerUnit}/></span><span data-preview-actions>{actions?.(m.segmentId)}</span></div>
@@ -107,13 +108,13 @@ export function StrategyDetailOfferings({ plan:p }: { readonly plan:StrategyView
         const shared=(row.kind==="product"?p.sharedProducts:p.sharedSolutions)?.some(x=>x.id===row.id);
         const markets=p.targetMarkets?.filter(m=>(row.kind==="product"?m.products:m.solutions)?.some(x=>x.id===row.id));
         const scope=offeringScope(shared, markets, p.targetMarkets === null, T);
-        const titleLink=<Link href={row.href} className="inline-flex min-w-0 items-start gap-sm text-body font-medium no-underline transition-colors hover:text-primary-text hover:no-underline"><Icon name={row.icon} size="sm" className="shrink-0 text-muted-foreground" aria-hidden="true"/><span className="line-clamp-2 break-words">{row.name}</span></Link>;
+        const titleLink=<Link href={row.href} className={`${links.link} inline-flex min-w-0 items-start gap-sm text-body font-medium`}><Icon name={row.icon} size="sm" className="shrink-0 text-muted-foreground" aria-hidden="true"/><span className="line-clamp-2 break-words">{row.name}</span></Link>;
         const detail=<>
           {row.status==="retired"?<Tag>{T.retiredSolution}</Tag>:null}
           <dl className={styles.previewFacts}>
             <div className={styles.previewFact}><dt><StrategyDetailLabel icon={row.icon}>{row.kind==="product"?T.productKind:T.solutionKind}</StrategyDetailLabel></dt><dd>{row.code}</dd></div>
             {row.novelty?<div className={styles.previewFact}><dt><StrategyDetailLabel>{R.offeringAttribute}</StrategyDetailLabel></dt><dd>{R[row.novelty]}</dd></div>:null}
-            <div className={styles.previewFact}><dt><StrategyDetailLabel>{T.targetMarketsTitle}</StrategyDetailLabel></dt><dd className={styles.previewLinks}>{shared?<span>{T.sharedScope}</span>:null}{markets?.length?markets.map(m=><Link key={m.segmentId} href={`/segment/${encodeURIComponent(m.segmentId)}`} className="transition-colors hover:text-primary-text"><Icon name="globe" size="sm" className="shrink-0 text-muted-foreground"/><span>{m.marketName}</span></Link>):!shared?scope:null}</dd></div>
+            <div className={styles.previewFact}><dt><StrategyDetailLabel>{T.targetMarketsTitle}</StrategyDetailLabel></dt><dd className={styles.previewLinks}>{shared?<span>{T.sharedScope}</span>:null}{markets?.length?markets.map(m=><Link key={m.segmentId} href={`/segment/${encodeURIComponent(m.segmentId)}`} className={links.link}><Icon name="globe" size="sm" className="shrink-0 text-muted-foreground"/><span>{m.marketName}</span></Link>):!shared?scope:null}</dd></div>
           </dl>
         </>;
         return <StrategyPreviewCard key={row.key} title={row.name} detail={detail} className="min-w-0 gap-0" data-strategy-offering={row.kind}><CardContent className="flex-1">
@@ -134,7 +135,7 @@ export function StrategyDetailHandoff({ plan:p, rows, children }: { readonly pla
       <Card className="min-w-0" data-strategy-handoff-card="planning"><CardContent>
       <div className={styles.handoffRow}>
         <StrategyDetailLabel icon="chart-bar">{T.openPlanning}</StrategyDetailLabel>
-        {linked.length?<div className="flex min-w-0 flex-wrap gap-sm">{linked.map(r=><Link key={r.revisionId} href={`/planning?year=${r.year}&revision=${r.revisionId}`} className="text-body transition-colors hover:text-primary-text">{r.year} / V{r.version}</Link>)}</div>:<p className="text-body">{rows===null?T.unknown:H.none}</p>}
+        {linked.length?<div className="flex min-w-0 flex-wrap gap-sm">{linked.map(r=><Link key={r.revisionId} href={`/planning?year=${r.year}&revision=${r.revisionId}`} className={`${links.textLink} text-body`}>{r.year} / V{r.version}</Link>)}</div>:<p className="text-body">{rows===null?T.unknown:H.none}</p>}
         <Button asChild size="md" variant="ghost"><Link href="/planning">{D.viewPlanning}<Icon name="arrow-right" size="sm" aria-hidden="true"/></Link></Button>
       </div>
     {rows?.length?<Collapsible className="flex flex-col gap-md"><CollapsibleTrigger asChild><Button size="md" variant="ghost" className="group self-start"><Icon name="chevron-down" size="sm" className="transition-transform group-data-[state=open]:rotate-180"/>{D.handoffDetails}</Button></CollapsibleTrigger><CollapsibleContent>{children}</CollapsibleContent></Collapsible>:null}

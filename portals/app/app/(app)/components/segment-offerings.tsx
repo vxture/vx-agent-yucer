@@ -2,6 +2,7 @@
 
 import { useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
+import links from "./business-reference.module.css";
 import { Button, Drawer, Icon, Section, SectionHeader } from "@vxture/design-ui";
 import { StrategyInfoCard, StrategyInfoContent } from "./strategy-info-card";
 import { collectionDrawerWidth } from "./collection-layout";
@@ -42,7 +43,7 @@ export function SegmentOfferings({ vocabulary, selection, disabled, help, onChan
     {selected.length ? <div className="@container">
       <div className="grid grid-cols-1 gap-lg @xl:grid-cols-2 @5xl:in-data-workspace-full-width:grid-cols-3" data-segment-offering-grid>
         {selected.map(row => <StrategyInfoCard key={row.key} variant="reference" data-segment-offering={row.kind}><StrategyInfoContent>
-          <Link href={row.href} className="inline-flex min-w-0 items-start gap-xs text-body font-medium no-underline transition-colors hover:text-primary-text hover:no-underline">
+          <Link href={row.href} className={`${links.link} inline-flex min-w-0 items-start gap-xs text-body font-medium`}>
             <Icon name={row.icon} size="sm" aria-hidden="true" className="shrink-0 text-muted-foreground" /><span className="line-clamp-2 break-words">{row.name}</span>
           </Link>
           <span className="break-words text-body-small text-muted-foreground">{row.kind === "product" ? T.productKind : T.solutionKind}{` \u00b7 ${row.code}`}{row.status === "retired" ? ` \u00b7 ${T.retiredSolution}` : ""}</span>

@@ -1,0 +1,37 @@
+/* Business navigation only; action buttons and status icons retain DS roles. */
+.link, .textLink {
+  color: var(--foreground);
+  transition: color var(--transition-duration-fast) var(--ease-standard);
+}
+
+.link { text-decoration: none; }
+.titleButton { font: inherit; }
+.textLink {
+  text-decoration-line: underline;
+  text-decoration-color: color-mix(in srgb, currentColor 35%, transparent);
+  text-decoration-thickness: var(--border-width-thin);
+  text-underline-offset: var(--space-2xs);
+}
+
+.link > svg {
+  color: var(--primary-text);
+  opacity: var(--opacity-muted);
+  transition: color var(--transition-duration-fast) var(--ease-standard), opacity var(--transition-duration-fast) var(--ease-standard);
+}
+
+:global(.dark) .link > svg { opacity: 1; }
+
+:is(.link, .textLink):is(:hover, :focus-visible) {
+  color: var(--link-hover);
+  text-decoration-color: currentColor;
+}
+.link:is(:hover, :focus-visible) > svg { color: var(--link-hover); opacity: 1; }
+:is(.link, .textLink):focus-visible {
+  outline: var(--border-width-medium) solid var(--ring);
+  outline-offset: var(--space-2xs);
+  border-radius: var(--radius-sm);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .link, .textLink, .link > svg { transition: none; }
+}

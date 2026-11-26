@@ -1,22 +1,3 @@
-.portrait {
-  display: grid;
-  gap: var(--space-md);
-}
-
-.field {
-  composes: field from "./strategy-info-card.module.css";
-}
-
-.label {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-xs);
-  white-space: nowrap;
-  font-size: var(--body-small-font-size);
-  line-height: var(--body-line-height);
-  color: var(--muted-foreground);
-}
-
 /* Keep role widths stable regardless of the shared collection CSS load order. */
 div.table > div > table { min-width: var(--vx-container-5xl); }
 div.table th:has([data-collection-track="subject"]) { width: 34%; }
@@ -24,13 +5,3 @@ div.table th:has([data-collection-track="criteria"]) { width: auto; }
 div.table th:has([data-collection-track="count"]),
 div.table th:has([data-collection-track="state"]) { width: calc(var(--vx-spacing) * 24); }
 div.table th:has([data-collection-track="count"]):has(button) { width: calc(var(--vx-spacing) * 28); }
-
-.offering {
-  display: inline-flex;
-  max-width: 100%;
-  align-items: center;
-  gap: var(--space-sm);
-  min-width: 0;
-  text-decoration: none;
-}
-.offering:hover, .offering:focus-visible { color: var(--primary-text); text-decoration: none; }

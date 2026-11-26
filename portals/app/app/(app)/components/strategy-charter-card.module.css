@@ -34,7 +34,7 @@
 
 .heading {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: start;
   gap: var(--space-md);
 }
@@ -57,9 +57,9 @@
   overflow: hidden;
 }
 
-.emblem {
-  margin-top: var(--space-xs);
-}
+.titleLink { display: inline-flex; min-width: 0; max-width: 100%; align-items: start; gap: var(--space-md); }
+.emblem { flex-shrink: 0; margin-top: calc((1lh - var(--spacing-icon-lg)) / 2); }
+.identityMeta, .body, .footer { margin-inline-start: calc(var(--spacing-icon-lg) + var(--space-md)); }
 
 .body {
   composes: divider from "./strategy-info-card.module.css";
@@ -246,7 +246,7 @@
 }
 
 @container strategy-card (max-width: 36rem) {
-  .heading { grid-template-columns: auto minmax(0, 1fr); }
+  .heading { grid-template-columns: minmax(0, 1fr); }
   .headingActions { grid-column: 1 / -1; justify-self: end; max-width: 100%; gap: var(--space-sm); }
   .owner { flex: 0 1 auto; }
 }
