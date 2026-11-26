@@ -2,7 +2,7 @@ import type { TaskBundle } from "../task-store";
 import { readBusinessForm, type FormModule } from "./business-form";
 
 export type WorkspaceKind = "conversation" | "research" | "form" | "judgement";
-export type WorkspacePanel = "overview" | "forms" | "sources" | "activity";
+export type WorkspacePanel = "context" | "overview" | "forms" | "sources" | "activity";
 export type WorkspaceStage = "awaiting" | "running" | "paused" | "completed" | "cancelled" | "interrupted" | "failed";
 export interface WorkspaceView {
   version: "task-workspace/1";
@@ -32,6 +32,9 @@ export function taskWorkspaceView(bundle: TaskBundle | null): WorkspaceView {
     : last?.status === "failed" ? "failed" : last?.status === "interrupted" ? "interrupted" : "awaiting";
   const overviewMessageId = bundle?.messages.findLast(m => m.role === "assistant")?.id ?? null;
   const panels: WorkspacePanel[] = [];
+  // A saved task can have notes, input and references before its first answer.
+  // Restoring it must not present the same blank board as a new conversation.
+  if (bundle && !forms.length && !overviewMessageId) panels.push("context");
   if (kind === "form") panels.push("forms");
   if (overviewMessageId) panels.push("overview");
   // The execution reader may restore receipts even when no editable draft is

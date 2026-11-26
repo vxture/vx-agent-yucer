@@ -3,7 +3,8 @@ import { can } from "../../authz/decide";
 import { attainment, listTargets } from "../../domains/planning/service";
 import { listPipeline } from "../../domains/pipeline/service";
 import { readFocusWorkspace } from "../../domains/planning/focus-read";
-import { openOpportunityOverview, overviewPeriod, publishedOverviewMetric } from "../../domains/judgement/lib/home-overview";
+import { openOpportunityOverview, overviewPeriod, publishedOverviewMetric, overviewMarginRate } from "../../domains/judgement/lib/home-overview";
+import { judgementRecordHref } from "../../domains/judgement/lib/record-link";
 import { getPlanningStore } from "../../domains/shared/registry";
 import { focusContext } from "../named/context";
 import { resolveAppSession } from "./session";
@@ -26,8 +27,9 @@ export const loadHomeOverview = cache(async () => {
     ? await attainment({ ...ctx, store: getPlanningStore() }, selected.period).catch(() => null) : null;
   const rows = measured?.ok ? measured.value : [];
   const revenue = publishedOverviewMetric(rows, selected.targets, "revenue"), newCustomers = publishedOverviewMetric(rows, selected.targets, "new_logo");
+  const pipelineTarget = publishedOverviewMetric(rows, selected.targets, "pipeline"), margin = publishedOverviewMetric(rows, selected.targets, "margin");
   const targetAllowed = can(ctx.holder, ctx.entitlement, "planning.target.view", "data").allowed && can(ctx.holder, ctx.entitlement, "planning.attainment.view", "data").allowed;
-  const targetState = !targetAllowed ? "denied" : targets.status === "rejected" || (selected.targets.length && !measured?.ok) ? "unavailable" : null;
+  const targetState = !targetAllowed ? "denied" : targets.status === "rejected" || !targets.value.ok || (selected.targets.length && !measured?.ok) ? "unavailable" : null;
   const pipelineAllowed = can(ctx.holder, ctx.entitlement, "pipeline.view", "data").allowed;
   const pipeline = deals.status === "fulfilled" && deals.value.ok ? openOpportunityOverview(deals.value.value) : null;
   const namedAllowed = can(ctx.holder, ctx.entitlement, "planning.target.view", "data").allowed && can(ctx.holder, ctx.entitlement, "account.view", "data").allowed;
@@ -37,8 +39,10 @@ export const loadHomeOverview = cache(async () => {
   return {
     observedAt: now.toISOString(), period: selected.period, scope: session.scope.kind === "workspace" ? "workspace" as const : "visible" as const, canAsk,
     targetScope: session.scope.kind === "workspace" ? "company" as const : "personal" as const,
-    changes: { state: !changesAllowed ? "denied" : findings ? findings.scanned || findings.judgements.length ? "ready" : "insufficient" : "unavailable", findings: findings?.judgements.slice(0, 2).map(({id, claim}) => ({id, claim})) ?? [] },
+    changes: { state: !changesAllowed ? "denied" : findings ? findings.scanned || findings.judgements.length ? "ready" : "insufficient" : "unavailable", findings: changesAllowed ? findings?.judgements.slice(0, 4).map(f => ({id: f.id, claim: f.claim, urgency: f.urgency, subjectName: f.subjectName, subjectType: f.subjectType, href: judgementRecordHref(f)})) ?? [] : [] },
     revenue: { ...revenue, state: targetState ?? revenue.state }, newCustomers: { ...newCustomers, state: targetState ?? newCustomers.state },
+    pipelineTarget: { ...pipelineTarget, state: targetState ?? pipelineTarget.state },
+    margin: { ...margin, state: targetState ?? margin.state, rate: targetAllowed ? overviewMarginRate(selected.targets) : null },
     pipeline: { state: !pipelineAllowed ? "denied" : pipeline ? "ready" : "unavailable", count: pipeline?.count ?? null, missingAmounts: pipeline?.missingAmounts ?? null, amounts: pipeline?.amounts ?? [] },
     named: { state: !namedAllowed ? "denied" : !named ? "unavailable" : named.revision ? "ready" : "missing", count: named?.revision ? named.rows.length : null,
       covered: named?.revision ? named.rows.filter(r => r.coverage.state === "ready" && r.coverage.coveredRoles > 0).length : null,
