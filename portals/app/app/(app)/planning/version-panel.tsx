@@ -1169,7 +1169,7 @@ function NativePlanningVersionPanel({
           <EmptyState title={T.checksEmpty} description={T.checksEmptyHint} />
         )}
       </Drawer>
-      <Drawer open={manageHandoff} onClose={() => setManageHandoff(false)} width="md" title={C.editTitle} description={`Y${year}`} closeLabel={C.cancel}
+      <Drawer open={manageHandoff} onClose={() => setManageHandoff(false)} width="md" className="max-w-full" title={C.editTitle} description={`Y${year}`} closeLabel={C.cancel}
         footer={<div className="flex flex-wrap justify-end gap-sm pb-3xl">
           <Button size="xl" variant="secondary" onClick={() => setManageHandoff(false)}>{C.cancel}</Button>
           {state.draft?.content.releaseScope === "regions" ? <>

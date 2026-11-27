@@ -202,8 +202,18 @@ GitHub action. Future corrections still need explicit release direction.
 Workplan 149 tracks image verification, approval and live acceptance.
 The v0.1.148 image build succeeded (run 45922212681); actual identity
 755fe3e1 / production and release/commit manifest digests were verified.
-The production deployment is waiting for the owner to approve on GitHub;
-no approval or live acceptance has been claimed.
+The owner personally approved production run 45922212681. Deployment succeeded
+at 2026-11-27T01:32:34Z; health confirms v0.1.148 / 755fe3e1 / production.
+Nineteen signed-in read-only assertions passed: annual adoption, same-currency
+commitment reconciliation, supporting links, draft conflict handling, history
+and evidence-count labels. No business writes or model calls were made.
+Separate visual review found the new handoff-management Drawer clipped at
+390px (512px wide, left -122px). Its viewport constraint is corrected in local
+preview; 320/390/1440px bounds and controls passed in dark/large text. This
+follow-up is NOT released or authorized for a new application tag. Workplan
+149 retains the visual exception and pending patch-release acceptance.
+Do not claim the 19 automated assertions prove all visual acceptance passed.
+The existing 4060 preview and original production work tab are preserved.
 
 Owner instruction (2026-11-25): business records added to the authorized
 test account, including records already entered in this batch, should use normal
