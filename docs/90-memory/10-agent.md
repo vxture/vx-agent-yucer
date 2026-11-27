@@ -192,7 +192,28 @@ pipeline, new customers, channels and reference cases support those targets.
 Deduplicate registered objects by identity only: two distinct registrations
 with the same name remain two objects. Credit-code matching, intelligent
 duplicate detection and record merging are future work outside this batch.
-Implement and preview this bundle; no new application release is authorized.
+The owner subsequently instructed "proceed with production release" after
+reviewing this bundle. This authorizes v0.1.148 from PR #829 / 755fe3e1,
+including the reviewed annual commitment, strategic handoff and support-summary
+changes. PR/main six required checks and CodeQL passed; PR Sonar passed with
+91.2% new-code coverage and zero unresolved new issues. No DDL, configuration
+or dependency changes are included. Production approval remains an owner-only
+GitHub action. Future corrections still need explicit release direction.
+Workplan 149 tracks image verification, approval and live acceptance.
+The v0.1.148 image build succeeded (run 45922212681); actual identity
+755fe3e1 / production and release/commit manifest digests were verified.
+The owner personally approved production run 45922212681. Deployment succeeded
+at 2026-11-27T01:32:34Z; health confirms v0.1.148 / 755fe3e1 / production.
+Nineteen signed-in read-only assertions passed: annual adoption, same-currency
+commitment reconciliation, supporting links, draft conflict handling, history
+and evidence-count labels. No business writes or model calls were made.
+Separate visual review found the new handoff-management Drawer clipped at
+390px (512px wide, left -122px). Its viewport constraint is corrected in local
+preview; 320/390/1440px bounds and controls passed in dark/large text. This
+follow-up is NOT released or authorized for a new application tag. Workplan
+149 retains the visual exception and pending patch-release acceptance.
+Do not claim the 19 automated assertions prove all visual acceptance passed.
+The existing 4060 preview and original production work tab are preserved.
 
 Owner instruction (2026-11-25): business records added to the authorized
 test account, including records already entered in this batch, should use normal
