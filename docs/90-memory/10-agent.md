@@ -192,7 +192,18 @@ pipeline, new customers, channels and reference cases support those targets.
 Deduplicate registered objects by identity only: two distinct registrations
 with the same name remain two objects. Credit-code matching, intelligent
 duplicate detection and record merging are future work outside this batch.
-Implement and preview this bundle; no new application release is authorized.
+The owner subsequently instructed "proceed with production release" after
+reviewing this bundle. This authorizes v0.1.148 from PR #829 / 755fe3e1,
+including the reviewed annual commitment, strategic handoff and support-summary
+changes. PR/main six required checks and CodeQL passed; PR Sonar passed with
+91.2% new-code coverage and zero unresolved new issues. No DDL, configuration
+or dependency changes are included. Production approval remains an owner-only
+GitHub action. Future corrections still need explicit release direction.
+Workplan 149 tracks image verification, approval and live acceptance.
+The v0.1.148 image build succeeded (run 45922212681); actual identity
+755fe3e1 / production and release/commit manifest digests were verified.
+The production deployment is waiting for the owner to approve on GitHub;
+no approval or live acceptance has been claimed.
 
 Owner instruction (2026-11-25): business records added to the authorized
 test account, including records already entered in this batch, should use normal
