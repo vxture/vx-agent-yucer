@@ -12,13 +12,11 @@ import { makeAnalysisRow } from "./reading-views";
 import { useLocale } from "../lib/i18n/provider";
 import { attainmentCopy } from "./copy";
 import {
-  selectedDeals,
   verifiedNewLogos,
   type AnalysisRow,
 } from "../../domains/pipeline/lib/attainment-analysis";
 
 import styles from "./workspace.module.css";
-import { moneyScale } from "./format";
 
 type Metric = "revenue" | "pipeline" | "new_logo" | "margin";
 function metricValues(
@@ -246,7 +244,7 @@ export function TeamCharts({ data }: { data: AttainmentAnalysis }) {
     const parts = rows.map(
       (r) => makeAnalysisRow(data, r.scope, r.name, period)[field].value,
     );
-    return parts.some((x) => x === null)
+    return parts.includes(null)
       ? null
       : parts.reduce<number>((n, v) => n + v!, 0);
   };

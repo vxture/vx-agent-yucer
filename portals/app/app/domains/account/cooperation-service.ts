@@ -55,7 +55,7 @@ export async function recordCooperationHistory(
       const first = known.value
         .filter((d) => d.status === "won" && d.closedAt)
         .map((d) => d.closedAt!.toISOString().slice(0, 10))
-        .sort()[0];
+        .sort((left, right) => left.localeCompare(right))[0];
       if (
         (input.state === "never" &&
           known.value.some((d) => d.status === "won")) ||
