@@ -1,8 +1,7 @@
 import { EmptyState } from "@vxture/design-system";
 import { can } from "../../authz/decide";
 import { snapshotKey } from "../lib/attainment-progress";
-import { loadForecastWorkspace } from "./board";
-import { loadAttainmentBase } from "./board";
+import { loadAttainmentBase, loadForecastWorkspace } from "./board";
 import { loadAttainmentAnalysis } from "./analysis-board";
 import {
   resolveAttainmentQuery,

@@ -290,9 +290,10 @@ page and business acceptance must not be marked complete before it runs.
 Current correction stage (2026-11-28): the owner has signed in and rejected the
 runtime's fidelity to approved V2. Local repairs stay in
 /private/tmp/yucer-attainment-r1, now branch fix/attainment-stable-hydration.
-Preserve all existing uncommitted recovery work. Eight views use reusable
-product business components and scoped CSS with DS tokens. No further release
-has been authorized for the unreviewed correction bundle. Customer attainment
+Recovery work is preserved in PR#837. Eight views use reusable product business
+components and scoped CSS with DS tokens. After reviewing the corrections, the
+owner explicitly authorized their unified release on 2026-11-28; checks and
+build are in progress, production approval remains owner-only. Customer attainment
 contains formal outcome indicators only, not visit/execution plans. Regional
 and team charts share transient hover state; click selection stays separate.
 The team dashboard fills the available viewport. Personal responsibility reads
