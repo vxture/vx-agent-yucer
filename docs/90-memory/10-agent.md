@@ -289,11 +289,17 @@ page and business acceptance must not be marked complete before it runs.
 
 Current correction stage (2026-11-28): the owner has signed in and rejected the
 runtime's fidelity to approved V2. Local repairs stay in
-/private/tmp/yucer-attainment-r1, now branch fix/attainment-stable-hydration.
-Recovery work is preserved in PR#837. Eight views use reusable product business
+/private/tmp/yucer-attainment-r1; merged recovery work is preserved in PR#837,
+and release notes are on docs/v150-release-checkpoint. Eight views use reusable product business
 components and scoped CSS with DS tokens. After reviewing the corrections, the
-owner explicitly authorized their unified release on 2026-11-28; checks and
-build are in progress, production approval remains owner-only. Customer attainment
+owner explicitly authorized their unified release on 2026-11-28. PR#837 is
+merged at d6b7cd8c; PR/main six required checks and CodeQL passed, PR Sonar
+passed, main retains the baseline E/C gate tracked in#684. v0.1.150 is built;
+its release/commit digests and d6b7cd8c / production identity agree. Run46172872806
+is waiting for owner-only production approval; the agent has requested that
+click and has not approved it. Browser health still confirms v0.1.149 before
+approval. No DDL or configuration changed; live correction acceptance remains
+pending. Customer attainment
 contains formal outcome indicators only, not visit/execution plans. Regional
 and team charts share transient hover state; click selection stays separate.
 The team dashboard fills the available viewport. Personal responsibility reads
