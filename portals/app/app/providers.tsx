@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 import { ThemeProvider } from "@vxture/design-system";
 import { FullscreenProvider, ToastProvider, TooltipProvider } from "@vxture/design-ui";
+import { ChoicePanelBoundary } from "./(app)/components/choice-panel-boundary";
 
 /**
  * The provider stack, in a client module of our own.
@@ -25,7 +26,9 @@ export function Providers({ children }: { children: ReactNode }) {
     <ThemeProvider defaultMode="light">
       <FullscreenProvider>
         <ToastProvider>
-          <TooltipProvider>{children}</TooltipProvider>
+          <TooltipProvider>
+            <ChoicePanelBoundary>{children}</ChoicePanelBoundary>
+          </TooltipProvider>
         </ToastProvider>
       </FullscreenProvider>
     </ThemeProvider>

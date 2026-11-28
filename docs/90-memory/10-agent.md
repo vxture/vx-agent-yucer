@@ -98,6 +98,24 @@ remains design-only (RR-02 through RR-05 unimplemented); planned resource
 demand is not an actual-arrival fraction. This authorization covers the
 reviewed v0.1.145 bundle only, not subsequent fixes or releases.
 
+## Product design and DS boundary
+
+Owner clarification (2026-11-28): DS governs shared framework components,
+foundational controls, accessibility, themes and tokens. Product-specific design
+must be restored through reusable business components and scoped CSS. Do not
+replace an approved layout with generic DS defaults or require every domain
+composition to become an upstream DS component. Metric cards, tier progress,
+customer/project compositions and business charts can own product presentation
+while consuming DS tokens and respecting density/text-size preferences. Report
+missing tokens; do not invent a second theme or modify global controls to fix
+one business page. This clarifies the earlier thin-wrapper-only restriction in
+CLAUDE.md. After reviewing the eight-page attainment correction and subsequent
+customer/period/chart tooltip refinements, the owner explicitly instructed
+"proceed with release" on 2026-11-28. This authorizes the reviewed correction
+bundle's consolidated checks, PR/merge, tag/build and deployment preparation
+(workplan 153). Production Environment approval remains owner-only. Do not
+treat this authorization as covering future unreviewed corrections.
+
 ## Product button hierarchy preference
 
 Owner clarified (2026-11-25): primary page actions use DS 14px typography;
@@ -268,6 +286,22 @@ Accounts login form after a normal OIDC restoration attempt. The owner has
 been asked to sign in; no credentials were read and the original working tab
 was preserved. See153 for current evidence; deployment is complete but live
 page and business acceptance must not be marked complete before it runs.
+
+Current correction stage (2026-11-28): the owner has signed in and rejected the
+runtime's fidelity to approved V2. Local repairs stay in
+/private/tmp/yucer-attainment-r1, now branch fix/attainment-stable-hydration.
+Preserve all existing uncommitted recovery work. Eight views use reusable
+product business components and scoped CSS with DS tokens. No further release
+has been authorized for the unreviewed correction bundle. Customer attainment
+contains formal outcome indicators only, not visit/execution plans. Regional
+and team charts share transient hover state; click selection stays separate.
+The team dashboard fills the available viewport. Personal responsibility reads
+"My responsibility"; acquisition cards show new customers as the main figure
+and total customers alongside. Unknown cooperation history remains unknown.
+The bottom cue is an unframed, noninteractive viewport-fixed indicator, 8px
+above the visible bottom (plus the device safe inset), not a page-bottom button.
+Review preview: /private/tmp/yucer-attainment-parity/index.html; runtime4060.
+See153 and design195 for the current corrections and actual verification.
 
 ## Product rules that bite
 

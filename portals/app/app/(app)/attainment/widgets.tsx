@@ -13,7 +13,6 @@ import {
 } from "@vxture/design-system";
 import type { AttainmentMetricTarget } from "../../domains/planning/attainment-plan";
 import {
-  tierProgress,
   customerComposition,
   verifiedNewLogos,
   type AnalysisRow,
@@ -23,25 +22,32 @@ import {
 import type { AttainmentAnalysis } from "./analysis-board";
 import { attainmentCopy } from "./copy";
 import { useLocale } from "../lib/i18n/provider";
-import { useOptionalXiaoyu, useOptionalXiaoyuClient } from "../components/xiaoyu-provider";
+import {
+  useOptionalXiaoyu,
+  useOptionalXiaoyuClient,
+} from "../components/xiaoyu-provider";
 import { useAssistantVisibility } from "../components/assistant-visibility";
 import links from "../components/business-reference.module.css";
 import styles from "./workspace.module.css";
 import { moneyScale } from "./format";
+import { targetProgress, periodPhase } from "./progress-model";
+import { personalPending } from "./personal-model";
 
 export function Hint({
   text,
   children,
+  inline = false,
 }: {
   text: ReactNode;
   children: ReactNode;
+  inline?: boolean;
 }) {
   return (
     <Tooltip>
       <TooltipTrigger asChild>
         <span
           tabIndex={0}
-          className="inline-flex min-w-0 cursor-help items-center w-full"
+          className={`inline-flex min-w-0 cursor-help items-center ${inline ? "shrink-0" : "w-full"}`}
         >
           {children}
         </span>
@@ -93,24 +99,17 @@ export function Tiers({
   value,
   target,
   label,
+  phase = "active",
 }: {
   value: number | null;
   target: Pick<AttainmentMetricTarget, "floor" | "target" | "stretch"> | null;
   label: string;
+  phase?: "active" | "ended" | "upcoming";
 }) {
   const locale = useLocale(),
     T = attainmentCopy(locale);
-  const scale = tierProgress(value, target);
-  const stage = scale
-    ? {
-        below: T.below,
-        floor: T.floorReached,
-        target: T.targetReached,
-        stretch: T.stretchReached,
-      }[scale.stage]
-    : target
-      ? T.unknown
-      : T.noTarget;
+  const { scale, state, tone } = targetProgress(value, target, phase);
+  const stage = T[state];
   return (
     <Hint
       text={
@@ -136,13 +135,15 @@ export function Tiers({
           aria-valuetext={stage}
           value={scale ? Math.max(0, value!) : 0}
           max={scale?.maximum ?? 1}
-          className={`h-sm ${scale?.stage === "stretch" ? "[&>div]:bg-success" : scale?.stage === "floor" ? "[&>div]:bg-info" : "[&>div]:bg-primary"}`}
+          data-tone={tone}
+          className={styles.tierTrack}
         />
-        {scale?.marks.map((m) => (
+        {scale?.marks.filter((m, i, all) => !all.slice(i + 1).some((next) => next.value === m.value)).map((m) => (
           <span
             key={m.key}
             aria-hidden
-            className="pointer-events-none absolute inset-y-0 border-l border-dashed border-muted-foreground/30"
+            className={styles.tierMarker}
+            data-tier={m.key}
             style={{ left: `${m.position}%` }}
           />
         ))}
@@ -166,8 +167,9 @@ export function Discuss({
   return (
     <span className="inline-flex items-center gap-xs">
       <Button
-        variant="secondary"
-        size="sm"
+        variant="ghost"
+        size="xl"
+        className="text-body-small"
         disabled={conversation?.loading}
         onClick={() => {
           const state = client.getSnapshot();
@@ -218,9 +220,9 @@ export function Owner({
   const name =
     members.find((m) => m.sub === sub)?.name || (sub ? T.noName : T.noOwner);
   return (
-    <span className="inline-flex items-center gap-xs text-body-small">
-      <UserAvatar className="size-control-md" alt={name} />
-      <span>{name}</span>
+    <span className="inline-flex min-w-0 max-w-full items-center gap-xs text-body-small" title={name}>
+      <UserAvatar className="size-control-md shrink-0" alt={name} />
+      <span className="truncate">{name}</span>
     </span>
   );
 }
@@ -266,7 +268,7 @@ export function SummaryMetrics({
             (d) => d.accountId === a.id && d.ownerSub === row.scope.slice(6),
           )
         : row.scope.startsWith("territory:")
-          ? data.deals?.some(
+          ? a.regionId === row.scope.slice(10) || data.deals?.some(
               (d) =>
                 d.accountId === a.id && d.territoryId === row.scope.slice(10),
             )
@@ -286,33 +288,17 @@ export function SummaryMetrics({
     row.period,
     data.completeRoster,
   );
-  const stage = (fact: MetricFact, target: AttainmentMetricTarget | null) => {
-    const scale = tierProgress(fact.value, target);
-    return scale
-      ? {
-          below: T.below,
-          floor: T.floorReached,
-          target: T.targetReached,
-          stretch: T.stretchReached,
-        }[scale.stage]
-      : fact.state !== "ready"
-        ? T[fact.state]
-        : T.noTarget;
-  };
-  const reviewTotal = data.deals
-    ? selectedDeals(data.deals, row.scope, row.period).filter(
-        (d) => d.status === "open",
-      ).length +
-      data.deals.filter(
-        (d) =>
-          d.status === "open" &&
-          !d.expectedCloseAt &&
-          (row.scope === "workspace" ||
-            (row.scope.startsWith("owner:") &&
-              row.scope.slice(6) === d.ownerSub) ||
-            row.scope === `territory:${d.territoryId}`),
-      ).length
-    : 0;
+  const phase = periodPhase(row.period, data.observedAt);
+  const stage = (fact: MetricFact, target: AttainmentMetricTarget | null) =>
+    fact.state !== "ready" ? T[fact.state] : T[targetProgress(fact.value, target, phase).state];
+  const pending = personalPending(data);
+  const pendingSegments = pending ? [
+    { label: T.delayed, count: pending.kinds.delayed, color: "var(--destructive)" },
+    { label: T.conditions, count: pending.kinds.conditions, color: "var(--warning)" },
+    { label: T.missingBasis, count: pending.kinds.missingBasis, color: "var(--info)" },
+    { label: T.customerGoals, count: pending.kinds.goals, color: "var(--chart-4)" },
+  ].filter((s) => s.count > 0) : [];
+  const historical = phase === "ended";
   const coverageLabel =
     row.gap === 0
       ? T.covered
@@ -325,182 +311,211 @@ export function SummaryMetrics({
             : row.coverage < 4
               ? T.goodCoverage
               : T.highCoverage;
-  return (
-    <div className={styles.metrics}>
-      <Card className={styles.metric}>
-        <span className="text-body-small text-muted-foreground">
-          {T.revenue} <span className="tabular-nums">{units.label}</span>
-        </span>
-        <strong className={styles.metricValue}>
-          {money(row.closed.value)}
-        </strong>
-        <div className="flex justify-between text-body-small">
-          <span>{stage(row.closed, row.target)}</span>
-          <span>
-            {row.rate === null ? "\u2014" : `${format(row.rate * 100)}%`}
-          </span>
-        </div>
-        <Tiers value={row.closed.value} target={row.target} label={T.revenue} />
-        <span className={styles.metricAux}>
-          {T.target} {row.target ? money(row.target.target) : T.noTarget}
-        </span>
-      </Card>
-      {personal ? (
-        <Card className={styles.metric}>
-          <Hint text={T.historyHelp}>
-            <span className="text-body-small text-muted-foreground">
-              {T.customerCount}
-              <Icon name="info" size="xs" className="ml-xs" />
-            </span>
-          </Hint>
-          <strong className={styles.metricValue}>
-            {data.accounts ? currentAccounts.length : "\u2014"}
-          </strong>
-          <div className="flex justify-between text-body-small">
-            <span>
-              {T.new} {composition?.new ?? "\u2014"}
-            </span>
-            <span>
-              {T.added} {composition?.added ?? "\u2014"}
-            </span>
-          </div>
-          <div
-            role="img"
-            aria-label={
-              composition
-                ? `${T.old} ${composition.old}, ${T.new} ${composition.new}, ${T.unknownHistory} ${composition.unknown}`
-                : T.historyUnavailable
-            }
-            className="flex h-sm overflow-hidden rounded-full bg-accent"
-          >
-            {composition && composition.total > 0 ? (
-              <>
-                <span
-                  className="bg-primary-muted-strong"
-                  style={{
-                    width: `${(composition.old / composition.total) * 100}%`,
-                  }}
-                />
-                <span
-                  className="bg-primary"
-                  style={{
-                    width: `${(composition.new / composition.total) * 100}%`,
-                  }}
-                />
-              </>
-            ) : null}
-          </div>
-          <span className={styles.metricAux}>
-            {composition
-              ? `${T.old} ${composition.old} \u00b7 ${T.historyStatus} ${composition.unknown} \u00b7 ${T.prospect} ${composition.prospect}`
-              : T.historyUnavailable}
-          </span>
-        </Card>
-      ) : (
-        <Card className={styles.metric}>
-          <Hint text={T.financialHelp}>
-            <span className="text-body-small text-muted-foreground">
-              {T.margin}
-              <Icon name="info" size="xs" className="ml-xs" />
-            </span>
-          </Hint>
-          <strong className={styles.metricValue}>
-            {"\u2014"}
-            <span className="text-body-small font-normal text-muted-foreground">
-              {T.grossRate} {"\u2014"}
-            </span>
-          </strong>
-          <div className="text-body-small">{T.noSource}</div>
-          <Tiers value={null} target={margin} label={T.margin} />
-          <span className={styles.metricAux}>
-            {T.target} {margin ? money(margin.target) : T.noTarget}
-            {margin?.marginRates?.target
-              ? ` \u00b7 ${T.grossRate} ${margin.marginRates.target}%`
-              : ""}
-          </span>
-        </Card>
-      )}
-      <Card className={styles.metric}>
-        <Hint text={T.coverageHelp}>
-          <span className="text-body-small text-muted-foreground">
-            {T.pipeline}
-            <Icon name="info" size="xs" className="ml-xs" />
-          </span>
-        </Hint>
-        <strong className={styles.metricValue}>{money(row.open.value)}</strong>
-        <div className="flex justify-between text-body-small">
-          <span>{coverageLabel}</span>
-          <span>
-            {row.coverage === null ? "\u2014" : `${format(row.coverage)}\u00d7`}
-          </span>
-        </div>
+  const revenueCard = (
+    <MetricCard
+      label={T.revenue}
+      icon="coins"
+      value={money(row.closed.value)}
+      unit={units.label}
+      status={stage(row.closed, row.target)}
+      ratio={row.rate === null ? "\u2014" : `${format(row.rate * 100)}%`}
+      progress={
+        <Tiers value={row.closed.value} target={row.target} label={T.revenue} phase={phase} />
+      }
+      note={row.target ? `${T.target} ${money(row.target.target)} ${units.label}` : T.noTarget}
+    />
+  );
+  const pipelineCard = (
+    <MetricCard
+      label={T.pipeline}
+      icon="stack"
+      help={T.coverageHelp}
+      value={money(historical ? null : row.open.value)}
+      unit={units.label}
+      status={historical ? T.noHistoricalReserve : coverageLabel}
+      ratio={historical || row.coverage === null ? "\u2014" : `${format(row.coverage)}\u00d7`}
+      progress={
         <Tiers
-          value={row.coverage}
+          value={historical ? null : row.coverage}
           target={{ floor: 2, target: 3, stretch: 4 }}
           label={T.coverage}
         />
-        <span className={styles.metricAux}>
-          {T.remaining} {money(row.gap)} {"\u00b7"} {units.label}
-        </span>
-      </Card>
+      }
+      note={`${T.remaining} ${money(row.gap)} ${units.label}`}
+    />
+  );
+  return (
+    <div className={styles.metrics}>
+      {revenueCard}
       {personal ? (
-        <Card className={styles.metric}>
-          <span className="text-body-small text-muted-foreground">
-            {T.pending}
-          </span>
-          <strong className={styles.metricValue}>
-            {data.deals ? row.pending : "\u2014"}
-          </strong>
-          <span className="text-body-small">
-            {row.pending ? T.attention : T.normal}
-          </span>
-          <Hint
-            text={`${T.reviewed} ${Math.max(0, reviewTotal - row.pending)} / ${reviewTotal}`}
-          >
-            <Progress
-              value={data.deals ? Math.max(0, reviewTotal - row.pending) : null}
-              max={Math.max(1, reviewTotal)}
-              className="h-sm"
-              aria-label={T.reviewed}
-            />
-          </Hint>
-          <span className={styles.metricAux}>
-            {T.undated} {row.undated}
-          </span>
-        </Card>
+        <MetricCard
+          label={T.customerCount}
+          icon="users"
+          help={T.historyHelp}
+          value={data.accounts ? String(currentAccounts.length) : "\u2014"}
+          status={`${T.old} ${composition?.old ?? "\u2014"} \u00b7 ${T.new} ${composition?.new ?? "\u2014"}`}
+          ratio={`${T.historyStatus} ${composition?.unknown ?? "\u2014"}`}
+          progress={
+            <div
+              role="img"
+              aria-label={
+                composition
+                  ? `${T.old} ${composition.old}, ${T.new} ${composition.new}, ${T.unknownHistory} ${composition.unknown}`
+                  : T.historyUnavailable
+              }
+              className="flex h-sm overflow-hidden rounded-full bg-accent"
+            >
+              {composition && composition.total > 0 ? (
+                <>
+                  <span
+                    className="bg-primary-muted-strong"
+                    style={{
+                      width: `${(composition.old / composition.total) * 100}%`,
+                    }}
+                  />
+                  <span
+                    className="bg-primary"
+                    style={{
+                      width: `${(composition.new / composition.total) * 100}%`,
+                    }}
+                  />
+                </>
+              ) : null}
+            </div>
+          }
+          note={
+            composition
+              ? `${T.added} ${composition.added} \u00b7 ${T.prospect} ${composition.prospect}`
+              : T.historyUnavailable
+          }
+        />
       ) : (
-        <Card className={styles.metric}>
-          <span className="text-body-small text-muted-foreground">
-            {T.new_logo}
-          </span>
-          <strong className={styles.metricValue}>
-            {format(newLogos.value)}
-          </strong>
-          <div className="text-body-small">{stage(newLogos, logo)}</div>
-          <Tiers value={newLogos.value} target={logo} label={T.new_logo} />
-          <span className={styles.metricAux}>
-            {newLogos.state !== "ready"
+        <MetricCard
+          label={T.new_logo}
+          icon="user-plus"
+          help={T.historyHelp}
+          value={format(newLogos.value)}
+          companion={<span>{T.totalCustomers} {data.accounts ? format(currentAccounts.length) : "\u2014"}</span>}
+          status={stage(newLogos, logo)}
+          ratio={
+            logo && logo.target > 0 && newLogos.value !== null
+              ? `${format((newLogos.value / logo.target) * 100)}%`
+              : "\u2014"
+          }
+          progress={
+            <Tiers value={newLogos.value} target={logo} label={T.new_logo} phase={phase} />
+          }
+          note={
+            newLogos.state !== "ready"
               ? `${T.historyStatus} ${newLogos.missing}`
-              : `${T.target} ${logo ? format(logo.target) : T.noTarget}`}
-          </span>
-        </Card>
+              : `${T.target} ${logo ? format(logo.target) : T.noTarget}`
+          }
+        />
+      )}
+      {pipelineCard}
+      {personal ? (
+        <MetricCard
+          label={T.pendingItems}
+          icon="list-checks"
+          value={pending ? String(pending.total) : "\u2014"}
+          status={T.itemMix}
+          ratio={pending ? `${pendingSegments.length} ${T.kinds}` : "\u2014"}
+          progress={<Hint text={pending ? pendingSegments.map((s) => `${s.label} ${s.count}`).join("; ") || T.normal : T.unknown}>
+            <div className={styles.compositionTrack} role="img" aria-label={T.itemMix}>{pending && pending.total > 0 ? pendingSegments.map((s) => <span key={s.label} style={{ width: `${s.count / pending.total * 100}%`, background: s.color }} />) : null}</div>
+          </Hint>}
+          note={pending ? pendingSegments.map((s) => `${s.label} ${s.count}`).join(" \u00b7 ") || T.normal : historical ? T.noHistoricalReserve : T.unknown}
+        />
+      ) : (
+        <MetricCard
+          label={T.margin}
+          icon="chart-line-up"
+          help={T.financialHelp}
+          value={"\u2014"}
+          unit={units.label}
+          companion={
+            <span>
+              {T.grossRate} {"\u2014"}
+            </span>
+          }
+          status={T.noSource}
+          ratio={"\u2014"}
+          progress={<Tiers value={null} target={margin} label={T.margin} />}
+          note={margin ? `${T.target} ${money(margin.target)} ${units.label}${margin.marginRates?.target ? ` \u00b7 ${T.grossRate} ${margin.marginRates.target}%` : ""}` : T.noTarget}
+        />
       )}
     </div>
+  );
+}
+export function MetricCard({
+  label,
+  icon,
+  value,
+  unit,
+  companion,
+  status,
+  ratio,
+  progress,
+  note,
+  help,
+}: {
+  label: string;
+  icon: import("react").ComponentProps<typeof Icon>["name"];
+  value: string;
+  unit?: string;
+  companion?: ReactNode;
+  status?: ReactNode;
+  ratio?: ReactNode;
+  progress?: ReactNode;
+  note: ReactNode;
+  help?: ReactNode;
+}) {
+  const title = (
+    <span className={styles.metricLabel}>
+      <Icon name={icon} size="sm" />
+      <span>{label}</span>
+      {help ? (
+        <Icon name="info" size="xs" className="ml-auto text-muted-foreground" />
+      ) : null}
+    </span>
+  );
+  return (
+    <Card className={styles.metric} data-metric-known={value !== "\u2014"}>
+      {help ? <Hint text={help}>{title}</Hint> : title}
+      <div className={styles.metricValue}>
+        <strong>{value}</strong>
+        {unit && <span className={styles.metricUnit}>{unit}</span>}
+        {companion && (
+          <span className={styles.metricCompanion}>{companion}</span>
+        )}
+      </div>
+      {progress ? (
+        <div className={styles.metricProgress}>
+          <div className={styles.metricStatus}>
+            <span>{status}</span>
+            <span className="tabular-nums">{ratio}</span>
+          </div>
+          {progress}
+        </div>
+      ) : null}
+      <div className={styles.metricAux}>{note}</div>
+    </Card>
   );
 }
 export function BusinessLink({
   href,
   children,
+  icon = "external-link",
 }: {
   href: string;
   children: ReactNode;
+  icon?: import("react").ComponentProps<typeof Icon>["name"];
 }) {
   return (
     <Link
       href={href}
       className={`inline-flex items-center gap-xs ${links.link}`}
     >
-      <Icon name="external-link" size="xs" />
+      <Icon name={icon} size="sm" />
       {children}
     </Link>
   );

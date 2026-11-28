@@ -52,6 +52,71 @@
   min-height: var(--space-control-xl);
 }
 
+/* One choice-panel surface, including portals outside the page container.
+ * Drawers and dialogs are deliberately outside the popper-only selector.
+ */
+.controls [data-radix-popper-content-wrapper] > :is(
+  [role="listbox"], [role="menu"], [role="dialog"]
+) {
+  background-color: var(--popover);
+  color: var(--popover-foreground);
+}
+
+/* Customizable native pickers keep actual select/form/keyboard semantics.
+ * Their implicit anchor opens below the trigger instead of aligning the
+ * selected row with the OS menu. Unsupported engines retain native pickers.
+ */
+@supports (appearance: base-select) {
+  .controls select:where(:not([multiple], [size], [hidden], [aria-hidden="true"])),
+  .controls select:where(:not([multiple], [size], [hidden], [aria-hidden="true"]))::picker(select) {
+    appearance: base-select;
+  }
+  .controls select:where(:not([multiple], [size], [hidden], [aria-hidden="true"])) {
+    align-items: center;
+  }
+  .controls select[data-slot="native-select"]::picker-icon {
+    display: none;
+  }
+  .controls select:where(:not([multiple], [size], [hidden], [aria-hidden="true"]))::picker(select) {
+    inset: auto;
+    position-area: block-end span-inline-end;
+    position-try-fallbacks: flip-block, flip-inline, flip-block flip-inline;
+    margin: var(--space-2xs) 0;
+    min-inline-size: anchor-size(inline);
+    max-inline-size: min(var(--container-overlay-lg), calc(100dvw - var(--space-lg)));
+    max-block-size: 60dvh;
+    overflow: auto;
+    background: var(--popover);
+    color: var(--popover-foreground);
+    border: var(--border-width-thin) solid var(--border);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-overlay);
+    padding: var(--space-2xs);
+  }
+  .controls select:where(:not([multiple], [size], [hidden], [aria-hidden="true"])) option {
+    display: flex;
+    align-items: center;
+    gap: var(--space-xs);
+    min-block-size: var(--spacing-control-xl);
+    padding: var(--space-2xs) var(--space-sm);
+    white-space: normal;
+    overflow-wrap: anywhere;
+    border-radius: var(--radius-sm);
+    background: var(--popover);
+    color: var(--popover-foreground);
+  }
+  .controls select:where(:not([multiple], [size], [hidden], [aria-hidden="true"])) option:is(:checked, :focus, :hover) {
+    background: var(--accent);
+    color: var(--accent-foreground);
+  }
+  .controls select:where(:not([multiple], [size], [hidden], [aria-hidden="true"])) option:disabled {
+    opacity: var(--opacity-disabled);
+  }
+  .controls select:where(:not([multiple], [size], [hidden], [aria-hidden="true"])) option[hidden] {
+    display: none;
+  }
+}
+
 .controls td button[aria-expanded][class~="size-control-xs"] {
   width: var(--space-control-md);
 }
