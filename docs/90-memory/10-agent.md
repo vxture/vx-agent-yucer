@@ -253,9 +253,18 @@ passed532 each, repeated apply0, schema/grants identical; injected failure
 rolled back and recovered, old-app compatibility25 passed. Local browser
 checks cover navigation/scroll/chart reset, original-form writes and immutable
 forecast/history loops. Preview uses fake session plus in-memory stores only;
-never attach it to production DB. Production migration/application/live
-acceptance remain pending. See153 for current DS, CI and release evidence;
-do not call this batch live until actual deployment and acceptance.
+never attach it to production DB. PR#836 is merged at c35ce924; PR/main six
+required checks and CodeQL passed, PR Sonar passed. Main external Sonar retains
+the baseline failure tracked in#684. The owner personally approved production
+db-init46133356546; increment0142 succeeded at2026-11-28T11:55:57Z with1 applied,
+142 already recorded, ledger143. No configuration changed. The authorized
+application tag v0.1.149 points exactly at c35ce924. Build46143508536 succeeded;
+release/commit registry digests and c35ce924 / production identity match. Deploy
+is waiting on the owner production approval, which was requested separately.
+Production application remains v0.1.148 until verified otherwise.
+Application approval and live acceptance remain pending. See153 for current
+DS, CI and release evidence; do not call this batch live until actual deployment
+and acceptance.
 
 ## Product rules that bite
 
