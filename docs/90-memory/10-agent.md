@@ -289,11 +289,26 @@ page and business acceptance must not be marked complete before it runs.
 
 Current correction stage (2026-11-28): the owner has signed in and rejected the
 runtime's fidelity to approved V2. Local repairs stay in
-/private/tmp/yucer-attainment-r1, now branch fix/attainment-stable-hydration.
-Recovery work is preserved in PR#837. Eight views use reusable product business
+/private/tmp/yucer-attainment-r1; merged recovery work is preserved in PR#837,
+and release notes are on docs/v150-release-checkpoint. Eight views use reusable product business
 components and scoped CSS with DS tokens. After reviewing the corrections, the
-owner explicitly authorized their unified release on 2026-11-28; checks and
-build are in progress, production approval remains owner-only. Customer attainment
+owner explicitly authorized their unified release on 2026-11-28. PR#837 is
+merged at d6b7cd8c; PR/main six required checks and CodeQL passed, PR Sonar
+passed, main retains the baseline E/C gate tracked in#684. The owner personally
+approved run46172872806; deployment succeeded at2026-11-28T18:05:53Z. v0.1.150
+is live; release/commit registry digests, actual ACR pull, logs and browser
+health agree on d6b7cd8c / production. No DDL or configuration changed.
+Forty-seven unique signed-in live checks passed across all eight screens,
+matrix tooltips, region hover, single-member team reset/hover, native year
+pickers, viewport-bottom cues, paired forecast details and narrow/wide dark
+large text. The first script failures are retained: tooltip delay, native-picker
+foreground requirement and an invalid multi-member assertion on one member.
+Only the interrupted controls were repeated after correcting test preconditions;
+no product code changed. This review made no business writes or model calls.
+Actual customer-goal saving, multi-member dimming/revocation and cross-space
+acceptance remain pending; do not mark the whole AT-R1 batch complete. Original
+working tabs and preview4060 are preserved. Future unreviewed fixes need their
+own release direction. Customer attainment
 contains formal outcome indicators only, not visit/execution plans. Regional
 and team charts share transient hover state; click selection stays separate.
 The team dashboard fills the available viewport. Personal responsibility reads
