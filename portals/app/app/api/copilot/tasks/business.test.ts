@@ -23,6 +23,7 @@ import { isTaskObject } from "../../../domains/copilot/lib/task-contract";
 import { emptyContent } from "../../../domains/planning/plan-model";
 import { InMemoryAuthzStore, getAuthzStore, setAuthzStore } from "../../../authz/store";
 import {
+  getSalesPlanStore,
   setPlanningStore,
   setCatalogStore,
   setStrategyStore,
@@ -422,8 +423,9 @@ test("review catalogs resolve nested relations, strategy choices and members wit
 });
 
 test("published plan projections are queryable UUID sources with live attainment and access checks", async () => {
-  const f = configured(), plans = new InMemorySalesPlanStore();
-  const raw = new InMemoryPlanningStore();
+  const f = configured(), plans = getSalesPlanStore() as InMemorySalesPlanStore;
+  const raw = new InMemoryPlanningStore(), pipeline=new InMemoryPipelineStore();
+  f.c.stores={...f.c.stores,pipeline:()=>pipeline};
   setPlanningStore(withSalesPlanTargets(raw, plans));
   const ctx = { workspaceId: WS, sub: "alice", holder: f.c.authz, entitlement: f.c.entitlement, scope: f.c.scope, store: plans };
   const year = new Date().getUTCFullYear(), content = emptyContent(year, [], "CNY");
@@ -440,6 +442,12 @@ test("published plan projections are queryable UUID sources with live attainment
   assert.deepEqual(detail.records[0]!.source, source);
   assert.equal((detail.records[0]!.record as { id: string }).id, source.id);
   raw.seed({ published: { [`${WS}|Y${year}|workspace||`]: { closedAmount: { amount: 100, currency: "CNY" }, pipelineAmount: { amount: 200, currency: "CNY" }, newLogoCount: 2 } } });
+  assert.equal((await readTaskSource(f.c,source))?.version,source.version,"legacy submitted snapshots cannot change live facts");
+  pipeline.seed([{id:randomUUID(),workspaceId:WS,opportunityNo:"OPP-1",name:"Won project",accountId:ID,
+    ownerSub:"alice",territoryId:null,status:"won",stage:"won",forecastCategory:"closed",amount:{amount:80,currency:"CNY"},
+    currency:"CNY",closedAt:new Date(`${year}-02-01T00:00:00Z`),expectedCloseAt:null} as never]);
+  const live=await f.b.query({kind:"sales_target",id:source.id});
+  assert.equal((live.records[0]!.record as {analysis:{actual:{value:number}}}).analysis.actual.value,80);
   const measured = await readTaskSource(f.c, source);
   assert.ok(measured);
   assert.notEqual(measured.version, source.version);

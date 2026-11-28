@@ -439,6 +439,8 @@ export const WRITABLE_COLUMNS: Record<string, readonly string[]> = {
  * row, never an in-place edit.
  */
 export const APPEND_ONLY_TABLES: readonly string[] = [
+  "yucer_core.account_cooperation_history",
+  "yucer_gtm.plan_action_result",
   "yucer_agent.agent_execution_receipt",
   "yucer_agent.agent_business_knowledge_revision",
   "yucer_agent.agent_task_knowledge",

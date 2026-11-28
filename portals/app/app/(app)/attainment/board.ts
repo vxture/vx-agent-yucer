@@ -167,7 +167,7 @@ export const loadAttainmentTeam = cache(async () => {
   ]);
   const self = {
     sub: data.session.user.sub,
-    name: data.session.user.displayName ?? data.session.user.sub,
+    name: data.session.user.displayName ?? "",
     unit: "",
   };
   if (!units.ok || !placements.ok || !members.ok)

@@ -11,7 +11,6 @@ import {
   readTopicEvidence,
   type TopicContext,
 } from "../../../domains/judgement/topic-service";
-import { listTargets, attainment } from "../../../domains/planning/service";
 import { accessSource, businessBindings, businessRecords, digest } from "./business";
 import { readProductRoster } from "../../../platform/product-roster";
 import { getAuthzStore } from "../../../authz/store";
@@ -34,7 +33,6 @@ import {
 import { listProjects } from "../../../domains/delivery/service";
 import {
   getTopicStore,
-  getPlanningStore,
   getCatalogStore,
   getCopilotStore,
   getDeliveryStore,
@@ -121,20 +119,10 @@ export async function readTaskSource(
       return evidence ? { ...object, version: evidence.version } : null;
     }
     case "sales_target": {
-      const ctx = { ...base, store: getPlanningStore() },
-        rows = await listTargets(ctx);
-      const target = rows.ok
-        ? rows.value.find((t) => t.id === object.id)
-        : null;
-      if (
-        !target ||
-        (session.scope.kind !== "workspace" &&
-          target.ownerSub !== session.user.sub)
-      )
-        return null;
-      const actual = await attainment(ctx, target.period);
-      if (!actual.ok) return null;
-      value = actual.value.find((r) => r.target.id === object.id) ?? null;
+      const rows = await businessRecords(session, "sales_target").catch(
+        () => [],
+      );
+      value = rows.find(r=>r.object.id===object.id)?.data ?? null;
       break;
     }
     case "access": {const access=accessSource(session);return access.id===object.id?access:null;}

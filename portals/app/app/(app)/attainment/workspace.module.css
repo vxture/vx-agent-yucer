@@ -1,0 +1,141 @@
+.page {
+  position: relative;
+  min-width: 0;
+  padding-bottom: 0;
+}
+.scrollCue {
+  position: sticky;
+  bottom: var(--space-lg);
+  height: 0;
+  display: flex;
+  justify-content: center;
+  z-index: var(--z-index-sticky);
+  pointer-events: none;
+}
+.scrollCue > * {
+  pointer-events: auto;
+  transform: translateY(-100%);
+}
+.periodGroup {
+  display: inline-flex;
+  align-items: center;
+  border-radius: var(--radius-md);
+  background: var(--accent);
+  height: var(--spacing-control-md);
+  flex: 0 0 auto;
+  max-width: 100%;
+  padding-inline: var(--space-2xs);
+  gap: var(--space-2xs);
+}
+.periodGroup > [data-slot="native-select-wrapper"] {
+  width: auto;
+  flex: 0 0 auto;
+}
+.periodGroup [role="radiogroup"] {
+  flex: 0 0 auto;
+}
+.periodGroup button {
+  white-space: nowrap;
+}
+.periodGroup select {
+  height: var(--spacing-control-md);
+  border: 0;
+  background: transparent;
+  font-size: var(--body-small-font-size);
+  padding-inline: var(--space-xs);
+}
+.periodGroup > div {
+  height: var(--spacing-control-md);
+}
+.metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-lg);
+}
+.metric {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: var(--space-sm);
+  padding: var(--space-lg);
+}
+.metricValue {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-xs);
+  font-size: var(--heading-1-font-size);
+  flex-wrap: wrap;
+  font-weight: var(--font-weight-semibold);
+  font-variant-numeric: tabular-nums;
+}
+.metricAux {
+  min-height: 1lh;
+  font-size: var(--body-small-font-size);
+  color: var(--muted-foreground);
+}
+.chartGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-lg);
+}
+.chartGrid > * {
+  min-width: 0;
+}
+.amount {
+  display: block;
+  width: 9ch;
+  max-width: 100%;
+  margin-inline: auto;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.table th {
+  text-align: center;
+}
+.table th:first-child,
+.table td:first-child {
+  width: var(--spacing-table-col-fixed);
+  text-align: center;
+}
+.table th:last-child,
+.table td:last-child {
+  width: calc(var(--spacing-table-col-fixed) * 2);
+  padding-right: var(--space-md);
+  text-align: right;
+}
+.table th:last-child {
+  text-align: center;
+}
+.table[data-action-mode="menu"] th:last-child,
+.table[data-action-mode="menu"] td:last-child {
+  width: var(--spacing-table-col-fixed);
+  text-align: center;
+  padding-inline: var(--space-xs);
+}
+.carryCell {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: baseline;
+  gap: var(--space-xs) var(--space-sm);
+}
+.projects {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+  gap: var(--space-lg);
+}
+@media (max-width: 64rem) {
+  .metrics,
+  .chartGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .projects {
+    grid-template-columns: 1fr;
+  }
+}
+@media (max-width: 40rem) {
+  .metrics,
+  .chartGrid {
+    grid-template-columns: 1fr;
+  }
+}

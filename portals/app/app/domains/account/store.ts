@@ -1,3 +1,4 @@
+import { sameCooperation, type CooperationAssertion } from "./lib/cooperation";
 import { AccountHierarchyError, planAccountRegistrationHierarchy, planAccountParent, type RegistrationHierarchy } from "./lib/parent";
 import type { ImportanceLevel, PriorityRule } from "./lib/importance";
 import { randomUUID } from "node:crypto";
@@ -286,6 +287,11 @@ export interface CustomerNatureRecord {
 }
 
 export interface AccountStore {
+  listCooperationHistory(workspaceId: string): Promise<CooperationAssertion[]>;
+  appendCooperationHistory(
+    workspaceId: string,
+    row: CooperationAssertion,
+  ): Promise<CooperationAssertion>;
   listAccounts(workspaceId: string, filter?: AccountFilter): Promise<AccountRecord[]>;
   /** 重要度档位, both axes (incr/0090). */
   listImportanceLevels(workspaceId: string): Promise<ImportanceLevel[]>;
@@ -577,6 +583,28 @@ export interface AccountStore {
 }
 
 export class InMemoryAccountStore implements AccountStore {
+  private cooperation = new Map<string, CooperationAssertion[]>();
+  async listCooperationHistory(ws: string): Promise<CooperationAssertion[]> {
+    return [
+      ...new Map(
+        (this.cooperation.get(ws) ?? []).map((r) => [r.accountId, r]),
+      ).values(),
+    ];
+  }
+  async appendCooperationHistory(
+    ws: string,
+    row: CooperationAssertion,
+  ): Promise<CooperationAssertion> {
+    const rows = this.cooperation.get(ws) ?? [];
+    const existing = rows.find((r) => r.requestKey === row.requestKey);
+    if (existing) {
+      if (!sameCooperation(existing, row)) throw new Error("request_conflict");
+      return existing;
+    }
+    rows.push(row);
+    this.cooperation.set(ws, rows);
+    return row;
+  }
   private plans = new Map<string, AccountPlanRecord>();
   private importanceLevels: (ImportanceLevel & { workspaceId: string })[] = [];
   private priorityRules: (PriorityRule & { workspaceId: string })[] = [];

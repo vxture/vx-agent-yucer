@@ -1,4 +1,5 @@
 "use server";
+import { forecastNewLogos } from "../../domains/pipeline/cooperation-read";
 
 import { revalidatePath } from "next/cache";
 import { resolveAppSession, type AppSession } from "../lib/session";
@@ -78,6 +79,19 @@ async function readSubmission(
     scope,
     currency: policy.defaultCurrency,
     opportunities,
+    verifiedNewLogoCount: await forecastNewLogos(
+      {
+        workspaceId: session.workspaceId,
+        sub: session.user.sub,
+        holder: session.authz,
+        entitlement: session.entitlement,
+        store: session.stores.pipeline(),
+        accounts: session.stores.account(),
+        completeCooperationRoster: session.scope.kind === "workspace",
+      },
+      period,
+      scope,
+    ),
   });
   return { snapshot, basis, currency: policy.defaultCurrency };
 }
@@ -225,6 +239,8 @@ export async function submitForecastSnapshot(
         entitlement: session.entitlement,
         store: session.stores.pipeline(),
         catalog: getCatalogStore(),
+        accounts: session.stores.account(),
+        completeCooperationRoster: session.scope.kind === "workspace",
       },
       {
         period,

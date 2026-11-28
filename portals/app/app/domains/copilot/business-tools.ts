@@ -4,7 +4,7 @@ export const BUSINESS_TOOLS: ToolDefinition[] = [
   {
     name: "query_business",
     description:
-      "Read current authorized Yucer business records beyond the current page. Lists return bounded previews with matchedCount and nextOffset; do not mistake a page or omitted text for the full business picture. Continue with offset=nextOffset and identical filters when needed. Use id and optional fields (dot paths/array indices, e.g. criteria.customerNeed or revisions.2.content.targets) to inspect relevant details. For a single string field with id, follow textPage.nextOffset as textOffset for remaining text. Current records override memory; drafts are not published facts. Never send SQL.",
+      "Read current authorized Yucer business records beyond the current page. Lists return bounded previews with matchedCount and nextOffset; do not mistake a page or omitted text for the full business picture. Continue with offset=nextOffset and identical filters when needed. Use id and optional fields (dot paths/array indices, e.g. criteria.customerNeed or revisions.2.content.targets) to inspect relevant details. For a single string field with id, follow textPage.nextOffset as textOffset for remaining text. Current records override memory; drafts are not published facts. sales_target.analysis uses the same live facts as attainment pages; unknown is not zero, and historical submitted forecasts are separate. Never send SQL.",
     parameters: {
       type: "object",
       properties: {

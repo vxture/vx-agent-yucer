@@ -1,3 +1,4 @@
+import { readPlanActionResults } from "../../../domains/planning/action-result";
 import { PageCrumbs } from "../../components/page-crumbs";
 import { EmptyState, ViewLayout } from "@vxture/design-ui";
 import { resolveAppSession } from "../../lib/session";
@@ -18,17 +19,35 @@ export default async function FocusDetailPage({ params, searchParams }: Readonly
   if (!query) return <EmptyState title={E.invalid_period}/>;
   try {
     const data = await readFocusDetail(focusContext(session), { ...query, accountId: id });
+    const results = await readPlanActionResults(
+      focusContext(session),
+      query,
+    ).catch(() => null);
+    const canVerify = can(
+      session.authz,
+      session.entitlement,
+      "planning.target.update",
+      "ui",
+    ).allowed;
     const range = data.workspace.periods.find(p => p.key === data.workspace.period)!;
     const canPipeline = can(session.authz, session.entitlement, "pipeline.view", "data").allowed;
     const deals = canPipeline ? await relatedPipeline({ workspaceId: session.workspaceId, sub: session.user.sub, holder: session.authz, entitlement: session.entitlement, store: session.stores.pipeline() }, id) : null;
-    const opportunities = deals?.ok ? deals.value.filter(d => {
+    const opportunities = deals?.ok ? deals.value.filter((d) => {
       const date = d.status === "open" ? d.expectedCloseAt : d.closedAt;
-      return date && date.toISOString().slice(0, 10) >= range.start && date.toISOString().slice(0, 10) < range.end;
+      return (
+              date && date.toISOString().slice(0, 10) >= range.start && date.toISOString().slice(0, 10) < range.end
+            );
     }).map(d => ({ id: d.id, name: d.name, status: d.status, amount: d.amount?.amount ?? null, currency: d.currency, date: (d.status === "open" ? d.expectedCloseAt : d.closedAt)!.toISOString().slice(0,10) })) : [];
     let pipelineState: "ready" | "failed" | "denied" = "denied";
     if (canPipeline) pipelineState = deals?.ok ? "ready" : "failed";
-    return <ViewLayout><PageCrumbs trail={[{ label: DOMAIN_LABEL.namedAccount, href: focusHref({ ...data.workspace, revisionId: data.workspace.revision?.id }) }]} current={data.row.name}/><FocusDetailView key={`${data.row.id}:${data.workspace.year}:${data.workspace.period}:${data.workspace.regionId}:${data.workspace.revision?.id}:${data.workspace.editToken}:${data.workspace.eventNo}`} {...data} opportunities={opportunities} pipelineState={pipelineState} canOpenPlanning={session.scope.kind === "workspace" && can(session.authz, session.entitlement, "planning.target.view", "ui").allowed}/></ViewLayout>;
-  } catch (e) { return <EmptyState title={T.notFound} description={E[e instanceof PlanError ? e.code : "source_read_failed"] ?? T.error}/>; }
+    return (
+      <ViewLayout><PageCrumbs trail={[{ label: DOMAIN_LABEL.namedAccount, href: focusHref({ ...data.workspace, revisionId: data.workspace.revision?.id }) }]} current={data.row.name}/><FocusDetailView key={`${data.row.id}:${data.workspace.year}:${data.workspace.period}:${data.workspace.regionId}:${data.workspace.revision?.id}:${data.workspace.editToken}:${data.workspace.eventNo}`} {...data}
+          actionResults={results}
+          canVerifyAction={canVerify} opportunities={opportunities} pipelineState={pipelineState} canOpenPlanning={session.scope.kind === "workspace" && can(session.authz, session.entitlement, "planning.target.view", "ui").allowed}/></ViewLayout>
+    );
+  } catch (e) { return (
+      <EmptyState title={T.notFound} description={E[e instanceof PlanError ? e.code : "source_read_failed"] ?? T.error}/>
+    ); }
 }
 
 async function relatedPipeline(ctx: Parameters<typeof listPipeline>[0], accountId: string) {

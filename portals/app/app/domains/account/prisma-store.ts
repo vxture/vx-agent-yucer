@@ -1,3 +1,4 @@
+import { sameCooperation, type CooperationAssertion } from "./lib/cooperation";
 import { randomUUID } from "node:crypto";
 import { AccountHierarchyError, planAccountRegistrationHierarchy, planAccountParent } from "./lib/parent";
 import type { ImportanceLevel, PriorityRule } from "./lib/importance";
@@ -110,6 +111,63 @@ export class PrismaAccountStore implements AccountStore {
    * Production constructs this with no argument and nothing changes.
    */
   constructor(private readonly client: () => Promise<PrismaClient> = getPrismaClient) {}
+
+  async listCooperationHistory(
+    workspaceId: string,
+  ): Promise<CooperationAssertion[]> {
+    const p = await this.client();
+    const rows = await p.accountCooperationHistory.findMany({
+      where: { workspaceId },
+      orderBy: { sequence: "desc" },
+      distinct: ["accountId"],
+    });
+    return rows.map(
+      ({ sequence: _sequence, workspaceId: _workspaceId, ...r }) => ({
+        ...r,
+        state: r.state as CooperationAssertion["state"],
+        firstDate: r.firstDate?.toISOString().slice(0, 10) ?? null,
+        recordedAt: r.recordedAt.toISOString(),
+      }),
+    );
+  }
+  async appendCooperationHistory(
+    workspaceId: string,
+    row: CooperationAssertion,
+  ): Promise<CooperationAssertion> {
+    const p = await this.client();
+    const data = {
+      ...row,
+      workspaceId,
+      firstDate: row.firstDate ? new Date(row.firstDate) : null,
+      recordedAt: new Date(row.recordedAt),
+    };
+    let saved;
+    try {
+      saved = await p.accountCooperationHistory.create({ data });
+    } catch (error) {
+      if (!isUniqueViolation(error)) throw error;
+      saved = await p.accountCooperationHistory.findUniqueOrThrow({
+        where: {
+          workspaceId_requestKey: { workspaceId, requestKey: row.requestKey },
+        },
+      });
+    }
+    const mapped = {
+      id: saved.id,
+      accountId: saved.accountId,
+      state: saved.state as CooperationAssertion["state"],
+      firstDate: saved.firstDate?.toISOString().slice(0, 10) ?? null,
+      beforeYear: saved.beforeYear,
+      acquisitionOwnerSub: saved.acquisitionOwnerSub,
+      acquisitionTerritoryId: saved.acquisitionTerritoryId,
+      evidence: saved.evidence,
+      recordedAt: saved.recordedAt.toISOString(),
+      recordedBy: saved.recordedBy,
+      requestKey: saved.requestKey,
+    };
+    if (!sameCooperation(mapped, row)) throw new Error("request_conflict");
+    return mapped;
+  }
 
   async upsertMarketDivision(
     workspaceId: string,

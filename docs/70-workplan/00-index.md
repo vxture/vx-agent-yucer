@@ -4206,3 +4206,6 @@ owner「继续」后按 YC-021 的验收句逐项核对进阶 23 项：续约因
 ## 战略卡片支撑与编号
 
 [141 — 战略支撑信息、周期与存量编号迁移](141-strategy-support-numbering.md)：SC-04–SC-11已随v0.1.145及0140上线，发布回执见146。
+
+- [152 承诺达成设计与导航](152-attainment-analysis-navigation.md)
+- [153 承诺达成正式实施与统一上线](153-attainment-implementation-release.md)

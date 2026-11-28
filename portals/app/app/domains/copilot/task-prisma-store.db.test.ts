@@ -6,6 +6,8 @@ import { test } from "node:test";
 import { Client } from "pg";
 import { PrismaTaskStore } from "./task-prisma-store";
 import { PrismaCopilotStore } from "./prisma-store";
+import { PrismaPipelineStore } from "../pipeline/prisma-store";
+import { PrismaAccountStore } from "../account/prisma-store";
 import { TASK_RULE_VERSION, type TaskScope } from "./lib/task-contract";
 import { taskArtifacts } from "./lib/task-artifacts";
 import {
@@ -675,6 +677,7 @@ test("post-model failure diagnostics persist counts only, remain private and fre
 test("released plan sources persist the answer, survive resume and reject later access revocation", { skip }, async () => fixture(async (store, scope, db) => {
   const session = {
     workspaceId: scope.workspaceId, user: { sub: scope.actorSub }, scope: { kind: "workspace" },
+    stores: { pipeline: () => new PrismaPipelineStore(), account: () => new PrismaAccountStore() },
     authz: { permissions: new Set(PERM_CODES) },
     entitlement: { ...EMPTY_ENTITLEMENT, workspace_id: scope.workspaceId, product: "yucer", tier: "enterprise" },
   } as unknown as AppSession;

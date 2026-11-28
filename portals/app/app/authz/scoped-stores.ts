@@ -127,7 +127,7 @@ class ScopedPipelineStore implements PipelineStore {
   listForecastSnapshots: PipelineStore["listForecastSnapshots"] = async (...a) =>
     (await this.inner.listForecastSnapshots(...a)).filter((row) => canReadReportingScope(this.scope, row, this.sub));
   getWinLossReview: PipelineStore["getWinLossReview"] = async (ws, id) =>
-    await this.getOpportunity(ws, id) ? this.inner.getWinLossReview(ws, id) : null;
+    (await this.getOpportunity(ws, id)) ? this.inner.getWinLossReview(ws, id) : null;
   listWinLossReviews: PipelineStore["listWinLossReviews"] = async (ws, ids) => {
     const visible = new Set((await this.listOpportunities(ws, { includeClosed: true })).map(o => o.id));
     return this.inner.listWinLossReviews(ws, ids.filter(id => visible.has(id)));
@@ -209,6 +209,21 @@ class ScopedPipelineStore implements PipelineStore {
 }
 
 class ScopedAccountStore implements AccountStore {
+  async listCooperationHistory(ws: string) {
+    const ids = new Set((await this.listAccounts(ws)).map((a) => a.id));
+    return (await this.inner.listCooperationHistory(ws)).filter((r) =>
+      ids.has(r.accountId),
+    );
+  }
+  async appendCooperationHistory(
+    ws: string,
+    row: Parameters<AccountStore["appendCooperationHistory"]>[1],
+  ) {
+    if (!(await this.getAccount(ws, row.accountId)))
+      throw new Error("not_found");
+    return this.inner.appendCooperationHistory(ws, row);
+  }
+
   constructor(
     private readonly inner: AccountStore,
     private readonly scope: DataScope,

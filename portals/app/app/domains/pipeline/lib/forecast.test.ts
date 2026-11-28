@@ -7,7 +7,6 @@ import {
   commitAttainment,
   forecastAccuracy,
   attainment,
-  countNewLogos,
   inPeriod,
   inScope,
   isZero,
@@ -319,55 +318,19 @@ const won = (
 
 const WS_SCOPE = { period: "2026Q3", scopeType: "workspace" as const, territoryId: null, ownerSub: null };
 
-test("a new logo is an account won for the first time inside the period", () => {
-  const all = [
-    won("o1", "acc_a", "2026-07-10"),
-    won("o2", "acc_b", "2026-08-02"),
-    // Won last quarter: acc_c is not new in Q3.
-    won("o3", "acc_c", "2026-05-01"),
-  ];
-  assert.equal(countNewLogos(all, "2026Q3", WS_SCOPE), 2);
-});
-
-test("a repeat sale to an existing customer is not a new logo", () => {
-  // acc_a was broken in Q2. Selling to them again in Q3 does not re-acquire
-  // them, and counting it would make new-customer growth indistinguishable
-  // from upsell.
-  const all = [won("o1", "acc_a", "2026-04-01"), won("o2", "acc_a", "2026-07-15")];
-  assert.equal(countNewLogos(all, "2026Q3", WS_SCOPE), 0);
-});
-
-test("a customer cannot be new twice by being won in two territories", () => {
-  // FIRST EVER is decided workspace-wide, then attributed to the scope of that
-  // first deal. Deciding it per territory would let the company's new-customer
-  // count exceed the number of customers it actually acquired.
-  const all = [
-    won("o1", "acc_a", "2026-07-01", { territoryId: "east" }),
-    won("o2", "acc_a", "2026-08-01", { territoryId: "south" }),
-  ];
-  const east = { period: "2026Q3", scopeType: "territory" as const, territoryId: "east", ownerSub: null };
-  const south = { period: "2026Q3", scopeType: "territory" as const, territoryId: "south", ownerSub: null };
-  assert.equal(countNewLogos(all, "2026Q3", east), 1, "credit follows the deal that broke the account");
-  assert.equal(countNewLogos(all, "2026Q3", south), 0);
-  assert.equal(countNewLogos(all, "2026Q3", WS_SCOPE), 1, "and the workspace counts them once");
-});
-
-test("a lost deal never makes a new logo", () => {
-  const all = [won("o1", "acc_a", "2026-07-10", { status: "lost" })];
-  assert.equal(countNewLogos(all, "2026Q3", WS_SCOPE), 0);
-});
-
-test("an unparseable period yields null, not zero", () => {
-  // "Nobody counted" and "counted, and the answer was none" are different
-  // facts; the snapshot column is nullable for exactly this reason.
-  assert.equal(countNewLogos([won("o1", "acc_a", "2026-07-10")], "FY26H1", WS_SCOPE), null);
-});
-
 test("a snapshot carries the count, and rollUp on its own does not invent one", () => {
   const all = [won("o1", "acc_a", "2026-07-10"), won("o2", "acc_b", "2026-05-01")];
   const row = unwrap(planSnapshot({
-    currency: "CNY", period: "2026Q3", scope: WS_SCOPE, opportunities: all }));
+    currency: "CNY", period: "2026Q3", scope: WS_SCOPE, opportunities: all,
+      verifiedNewLogoCount: 1,
+    }),
+  );
   assert.equal(row.newLogoCount, 1);
+  assert.equal(
+    unwrap(planSnapshot({
+    currency: "CNY", period: "2026Q3", scope: WS_SCOPE, opportunities: all })).newLogoCount,
+    null,
+  );
   // rollUp sees only the in-scope slice and cannot answer "first ever", so it
   // reports null rather than a count derived from a partial list.
   assert.equal(unwrap(rollUp(all, "CNY")).newLogoCount, null);
