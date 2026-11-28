@@ -38,6 +38,9 @@
 @container (width < 64rem) {
   .contentContainer { padding-inline: clamp(var(--space-md), 3.2cqi, var(--space-3xl)); }
 }
+.contentContainer:has([data-attainment-fitted="true"]) {
+  padding-bottom: var(--space-lg);
+}
 .canvasViewport { display: flex; overflow: hidden; }
 .canvasContainer { height: 100%; min-height: 0; padding-bottom: 0; }
 

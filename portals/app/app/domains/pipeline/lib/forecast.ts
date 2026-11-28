@@ -128,55 +128,10 @@ export function rollUp(
     bestCaseAmount: (best as { ok: true; value: Money }).value,
     pipelineAmount: (pipe as { ok: true; value: Money }).value,
     closedAmount: (closed as { ok: true; value: Money }).value,
-    // rollUp sees only the in-scope slice, and "first ever" is a workspace-wide
-    // question. planSnapshot computes it from the unfiltered list and overwrites
-    // this; leaving it null here means a caller who rolls up directly gets
-    // "nobody counted" rather than a wrong count.
+    // Acquisition is verified by the customer history service, including
+    // pre-system history. A list of system wins cannot establish first-ever.
     newLogoCount: null,
   });
-}
-
-/**
- * Customers won for the first time inside a period.
- *
- * DEFINITION, and both halves of it matter:
- *
- *   * FIRST EVER, decided across the whole workspace - not the first win in
- *     this territory. Otherwise winning the same customer in two regions makes
- *     them a new logo twice, and the company's new-customer count exceeds the
- *     number of customers it actually acquired.
- *   * ATTRIBUTED TO THE SCOPE OF THAT FIRST DEAL. The credit follows the deal
- *     that broke the account, which is the deal the target was set against.
- *
- * Takes the UNFILTERED opportunity list plus the scope, rather than a filtered
- * one, because the first condition cannot be evaluated on a filtered list.
- *
- * Returns null when the period label cannot be parsed - see periodRange. A
- * count needs a range, and inventing one would report a number nobody can
- * reproduce.
- */
-export function countNewLogos(
-  all: readonly ForecastableOpportunity[],
-  period: string,
-  scope: ForecastScope,
-): number | null {
-  const range = periodRange(period);
-  if (!range) return null;
-
-  // Each account's earliest win, over everything the workspace has ever won.
-  const firstWin = new Map<string, ForecastableOpportunity>();
-  for (const o of all) {
-    if (o.status !== "won" || !o.closedAt || !o.accountId) continue;
-    const held = firstWin.get(o.accountId);
-    if (!held || o.closedAt.getTime() < held.closedAt!.getTime()) firstWin.set(o.accountId, o);
-  }
-
-  let count = 0;
-  for (const o of firstWin.values()) {
-    if (!within(range, o.closedAt ?? null)) continue;
-    if (inScope([o], scope).length === 1) count += 1;
-  }
-  return count;
 }
 
 /**
@@ -349,6 +304,8 @@ export function planSnapshot(input: {
   scope: ForecastScope;
   opportunities: readonly ForecastableOpportunity[];
   currency: string;
+  /** Verified real first cooperation; omitted means historical facts are unavailable. */
+  verifiedNewLogoCount?: number | null;
   snapshotAt?: Date;
   /** The manager's call (0096); omitted = none. */
   call?: { readonly amount?: number | null; readonly note?: string | null };
@@ -388,7 +345,7 @@ export function planSnapshot(input: {
   return ok({
     ...totals.value,
     undated: period.undated,
-    newLogoCount: countNewLogos(input.opportunities, input.period, input.scope),
+    newLogoCount: input.verifiedNewLogoCount ?? null,
     period: input.period.trim(),
     scopeType: input.scope.scopeType,
     territoryId: input.scope.territoryId,

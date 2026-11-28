@@ -222,6 +222,41 @@ visible demo prefixes or data-generation labels. Keep fixture provenance and
 batch tracking internally. This does not authorize inventing real identity
 credentials, verified external sources, or overwriting immutable history.
 
+Latest owner instruction (2026-11-27): "proceed with implementation and release;
+plan one batch and task checklist." This authorizes the reviewed attainment V2
+to move beyond HTML-only, through original AT-02 to AT-05, implementation,
+consolidated checks, PR/merge and one unified application release. Workplan153
+is AT-R1: R1-01 baseline/DS/contracts;02 real metrics/diagnostics;03 eight page
+templates/framework;04 forecast/history/copilot business loop;05 consolidated
+engineering/business acceptance;06 build/owner production approval/live checks.
+Plan complete, R1-01 preparation only; no new runtime functionality or release
+has been completed by writing this plan. Current authoritative states are in153;
+earlier "AT-02 to05 unapproved / HTML only" notes are historical.
+No repeat permission request for individual tasks or this authorized release
+tag. Every production environment run still requires owner GitHub approval;
+never approve on their behalf. Report large milestones and maintain checklist.
+Use an isolated current-main baseline and preserve dirty150/151/other work;
+include only named dependencies. Do not paste preview constants/SVG/gradient
+arrangements into runtime as proof of real data/DS capability. Resolve actual
+upstream component gaps and minimal source/model changes; no promise of no DDL
+before audit. Real unknowns stay unknown, first-cooperation history includes
+pre-system customers, formal targets/permissions/history/confirmed writes are
+required. Choose the release version after checking used tags; no tag created
+or production operation triggered in this planning turn.
+
+
+AT-R1 implementation is in isolated worktree /private/tmp/yucer-attainment-r1,
+branch feat/attainment-r1, baseline9a05b056. Eight page templates and controlled
+analysis reads are implemented. Increment0142 adds append-only cooperation
+history and exact-revision customer-action evidence. Fresh and upgrade DBs
+passed532 each, repeated apply0, schema/grants identical; injected failure
+rolled back and recovered, old-app compatibility25 passed. Local browser
+checks cover navigation/scroll/chart reset, original-form writes and immutable
+forecast/history loops. Preview uses fake session plus in-memory stores only;
+never attach it to production DB. Production migration/application/live
+acceptance remain pending. See153 for current DS, CI and release evidence;
+do not call this batch live until actual deployment and acceptance.
+
 ## Product rules that bite
 
 Read `CLAUDE.md` section "Product domain rules that are now rigid here" before

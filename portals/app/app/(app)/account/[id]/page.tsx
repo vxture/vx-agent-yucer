@@ -1,3 +1,5 @@
+import { readCooperationHistory } from "../../../domains/account/cooperation-service";
+import { CooperationEditor } from "../../attainment/cooperation-editor";
 import { PageActionCrumbs } from "../../components/page-header-actions";
 import { MemberName } from "../../lib/member-names";
 import {
@@ -266,6 +268,7 @@ export default async function AccountDetailPage({
     );
   }
   const { account, contacts } = detail.value;
+  const cooperation = await readCooperationHistory(ctx).catch(() => null);
   const contactNameById = Object.fromEntries(contacts.map((c) => [c.id, c.name]));
 
   const canWrite = can(
@@ -1347,7 +1350,22 @@ export default async function AccountDetailPage({
             不需要传送门。 ======== */}
         <div className="flex min-w-0 flex-col gap-lg">
           <div>
-            <PageActionCrumbs more={canWrite ? <AccountHeaderMenu /> : undefined}>
+            <PageActionCrumbs more={canWrite ? (
+                      <>
+                        <CooperationEditor
+                          account={account}
+                          history={
+                            cooperation?.ok
+                              ? (cooperation.value.find(
+                                  (h) => h.accountId === account.id,
+                                ) ?? null)
+                              : null
+                          }
+                          year={new Date().getUTCFullYear()}
+                        />
+                        <AccountHeaderMenu />
+                      </>
+                    ) : undefined}>
               <ChainCrumbs trail={[{ label: DOMAIN_LABEL.account, href: "/account" }]} current={account.name} />
             </PageActionCrumbs>
             {/* The three editors, shared with the panels' own menus

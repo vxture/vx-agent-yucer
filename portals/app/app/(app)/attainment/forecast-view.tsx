@@ -29,6 +29,10 @@ import { snapshotKey } from "../lib/attainment-progress";
 import { attainmentHref } from "../lib/attainment-workspace";
 import Link from "next/link";
 import businessLinks from "../components/business-reference.module.css";
+import styles from "./workspace.module.css";
+import {moneyScale} from "./format";
+import {Numeric} from "./widgets";
+import {attainmentCopy} from "./copy";
 
 export async function AttainmentForecastView({
   period,
@@ -62,7 +66,7 @@ export async function AttainmentForecastView({
     ATTAINMENT_PLAN_TEXT: PT,
     ATTAINMENT_DEPLOYMENT_TEXT: D,
   } = await getMessages();
-  const locale = await resolveLocale();
+  const locale = await resolveLocale(),copy=attainmentCopy(locale);
   if (!board.ok)
     return (
       <EmptyState
@@ -194,25 +198,24 @@ export async function AttainmentForecastView({
         {!board.history.ok ? null : board.points.length === 0 ? (
           <EmptyState title={T.noHistory} description={T.noHistoryHint} />
         ) : (
-          <Table>
+          <Table className={styles.table}>
             <TableHeader>
               <TableRow>
+                <TableHead>{copy.number}</TableHead>
                 {[
                   T.snapshotAt,
-                  T.commit,
-                  T.bestCase,
-                  T.pipeline,
-                  T.publishedClosed,
-                  T.managerCall,
+                  `${T.commit} (${moneyScale(locale,board.score.ok ? board.score.value.current.closedAmount.currency : "CNY").label})`,
+                  T.bestCase,T.pipeline,T.publishedClosed,T.managerCall,
                   T.callNote,
                   VT.historyTarget,
                 ].map((label) => (
-                  <TableHead key={label} className={[T.commit, T.bestCase, T.pipeline, T.publishedClosed, T.managerCall].includes(label) ? "text-right" : undefined}>{label}</TableHead>
+                  <TableHead key={label} className="text-center">{label}</TableHead>
                 ))}
+                <TableHead>{copy.action}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {[...board.points].reverse().map((p) => (
+              {[...board.points].reverse().map((p,i) => (
                 <TableRow
                   key={snapshotKey(p)}
                   className={
@@ -221,20 +224,9 @@ export async function AttainmentForecastView({
                       : undefined
                   }
                 >
-                  <TableCell className="whitespace-nowrap text-right tabular-nums">
-                    <Link
-                      className={businessLinks.textLink}
-                      href={attainmentHref({
-                        period,
-                        scope: selectionScope,
-                        view: "history",
-                        snapshot: snapshotKey(p),
-                        planRevision,
-                      })}
-                    >
-                      {p.snapshotAt.toLocaleString(locale, { timeZone: "UTC" })}{" "}
-                      UTC
-                    </Link>
+                  <TableCell>{i+1}</TableCell>
+                  <TableCell className="whitespace-nowrap text-center tabular-nums">
+                    <time dateTime={p.snapshotAt.toISOString()}>{p.snapshotAt.toLocaleString(locale)}</time>
                   </TableCell>
                   {[
                     p.commitAmount,
@@ -246,19 +238,13 @@ export async function AttainmentForecastView({
                       key={index}
                       className="whitespace-nowrap text-right tabular-nums"
                     >
-                      {formatMoney(amount.amount, amount.currency, locale)}
+                      <Numeric value={amount.amount} currency={amount.currency}/>
                     </TableCell>
                   ))}
                   <TableCell className="whitespace-nowrap text-right tabular-nums">
-                    {p.callAmount
-                      ? formatMoney(
-                          p.callAmount.amount,
-                          p.callAmount.currency,
-                          locale,
-                        )
-                      : "-"}
+                    <Numeric value={p.callAmount?.amount ?? null} currency={p.callAmount?.currency}/>
                   </TableCell>
-                  <TableCell>{p.callNote ?? "-"}</TableCell>
+                  <TableCell><span className="line-clamp-2" title={p.callNote ?? undefined}>{p.callNote ?? "-"}</span></TableCell>
                   <TableCell className="text-body">
                     {(() => {
                       const b = p.targetBasis?.find(
@@ -299,6 +285,7 @@ export async function AttainmentForecastView({
                       );
                     })()}
                   </TableCell>
+                  <TableCell><Link className={businessLinks.textLink} href={attainmentHref({period,scope:selectionScope,view:"history",snapshot:snapshotKey(p),planRevision})}>{copy.details}</Link></TableCell>
                 </TableRow>
               ))}
             </TableBody>

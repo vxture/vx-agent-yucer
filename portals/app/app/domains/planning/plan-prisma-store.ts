@@ -1,3 +1,4 @@
+import { sameActionResult, type PlanActionResult } from "./action-result";
 import type { Prisma } from "@prisma/client";
 import { getPrismaClient } from "../../lib/db";
 import { assertWritable } from "../shared/column-locks";
@@ -77,6 +78,24 @@ export async function loadSalesPlans(db: Db, workspaceId: string): Promise<Sales
 }
 
 export class PrismaSalesPlanStore implements SalesPlanStore {
+  async actionResults(workspaceId: string,
+    revisionId: string,
+  ): Promise<PlanActionResult[]> {
+    const db = await getPrismaClient();
+    const rows = await db.planActionResult.findMany({
+      where: { workspaceId, revisionId },
+      orderBy: { sequence: "desc" },
+      distinct: ["actionKey"],
+    });
+    return rows.map(
+      ({ sequence: _sequence, workspaceId: _workspaceId, ...r }) => ({
+        ...r,
+        recordedAt: r.recordedAt.toISOString(),
+        occurredAt: r.occurredAt.toISOString().slice(0, 10),
+      }),
+    );
+  }
+
   async list(workspaceId: string) {
     const db = await getPrismaClient();
     return db.$transaction(
@@ -103,7 +122,11 @@ export class PrismaSalesPlanStore implements SalesPlanStore {
   async transact<T>(
     workspaceId: string,
     year: number,
-    run: (plan: SalesPlan) => T | Promise<T>,
+    run: (plan: SalesPlan,
+      write: {
+        appendActionResult(row: PlanActionResult): Promise<PlanActionResult>;
+      },
+    ) => T | Promise<T>,
   ): Promise<T> {
     const db = await getPrismaClient();
     return db.$transaction(
@@ -116,7 +139,42 @@ export class PrismaSalesPlanStore implements SalesPlanStore {
         await tx.$queryRaw`SELECT id FROM yucer_gtm.sales_plan WHERE workspace_id=${workspaceId}::uuid AND year=${year} FOR UPDATE`;
         const before = (await load(tx, workspaceId, year))!;
         const plan = structuredClone(before);
-        const result = await run(plan);
+        const result = await run(plan, {
+          appendActionResult: async (row) => {
+            // The root lock serializes evidence with release changes. All writes use this transaction.
+            const existing = await tx.planActionResult.findUnique({
+              where: {
+                workspaceId_requestKey: {
+                  workspaceId,
+                  requestKey: row.requestKey,
+                },
+              },
+            });
+            const saved =
+              existing ??
+              (await tx.planActionResult.create({
+                data: {
+                  ...row,
+                  workspaceId,
+                  occurredAt: new Date(row.occurredAt),
+                  recordedAt: new Date(row.recordedAt),
+                },
+              }));
+            const {
+              sequence: _sequence,
+              workspaceId: _workspaceId,
+              ...raw
+            } = saved;
+            const mapped = {
+              ...raw,
+              recordedAt: raw.recordedAt.toISOString(),
+              occurredAt: raw.occurredAt.toISOString().slice(0, 10),
+            };
+            if (!sameActionResult(mapped, row))
+              throw new Error("request_conflict");
+            return mapped;
+          },
+        });
         const release = plan.events.find(
           (e) =>
             e.kind === "release" &&

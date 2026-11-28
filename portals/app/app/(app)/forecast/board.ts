@@ -27,11 +27,19 @@ export async function forecastBoard(session: AppSession, period: string, scope: 
     // The series, not the latest point - the only reader that makes
     // forecast_snapshot's immutability pay for itself.
     forecastHistory(ctx, period, scope),
-    forecastScorecard({ ...ctx, catalog: getCatalogStore() }, period, { scope }),
+    forecastScorecard({ ...ctx, catalog: getCatalogStore(),
+        accounts: session.stores.account(),
+        completeCooperationRoster: session.scope.kind === "workspace",
+      }, period, { scope },
+    ),
     listTerritories({ ...ctx, store: getPlanningStore() }),
     // 快照间变化 (batch 9c). A failed read hides the block rather than failing
     // the page (YC-067 section 11: 任一批量读失败，依赖它的列显示读不到).
-    forecastChange({ ...ctx, catalog: getCatalogStore() }, period, scope).catch(() => undefined),
+    forecastChange({ ...ctx, catalog: getCatalogStore(),
+        accounts: session.stores.account(),
+        completeCooperationRoster: session.scope.kind === "workspace",
+      }, period, scope,
+    ).catch(() => undefined),
   ]);
   if (!preview.ok) return { ok: false as const, violations: preview.violations };
 

@@ -18,6 +18,7 @@ export type AttainmentView = (typeof ATTAINMENT_VIEWS)[number];
 export const ATTAINMENT_EVIDENCE = ["open", "won", "undated"] as const;
 export type AttainmentEvidence = (typeof ATTAINMENT_EVIDENCE)[number];
 export type AttainmentQuery = {
+  screen?: string | string[];
   period?: string | string[];
   perspective?: string | string[];
   scope?: string | string[];
@@ -89,8 +90,17 @@ export function resolveAttainmentQuery(
     snapshot: typeof query.snapshot === "string" ? query.snapshot : null,
     planRevision:
       typeof query.planRevision === "string" ? query.planRevision : null,
-    evidence: ATTAINMENT_EVIDENCE.includes(query.evidence as AttainmentEvidence) ? query.evidence as AttainmentEvidence : "open",
+    evidence: ATTAINMENT_EVIDENCE.includes(query.evidence as AttainmentEvidence) ? (query.evidence as AttainmentEvidence)
+      : "open",
     invalid:
+      Array.isArray(query.period) ||
+      (typeof query.period === "string" && query.period!=="all" &&
+        (!periodRange(query.period) ||
+          Number(period.replace(/^Y/, "").slice(0, 4)) < 2000 ||
+          Number(period.replace(/^Y/, "").slice(0, 4)) > 2200)) ||
+      Array.isArray(query.view) ||
+      (typeof query.view === "string" &&
+        !ATTAINMENT_VIEWS.includes(query.view as AttainmentView)) ||
       (!(teamOverview && rawScope === "team" && visibleTeam) &&
         !canReadReportingScope(access, scope, sub)) ||
       Array.isArray(query.scope) ||

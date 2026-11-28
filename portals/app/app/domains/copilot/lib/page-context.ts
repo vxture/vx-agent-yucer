@@ -4,7 +4,7 @@ import { isTaskObject, UUID, type TaskObject } from "./task-contract";
 export const PAGE_CONTEXT_VERSION = "page-context/1";
 export const COMPOSER_DRAFT_KEY = "conversation-input";
 export const PAGE_MODULES = ["home", "copilot", "strategy", "segment", "catalog", "solution", "planning", "named", "attainment", "winloss", "account", "contact", "capture", "pipeline", "quote", "campaign", "signal", "lead", "funnel", "delivery", "collection", "renewal", "domain", "admin", "upgrade"] as const;
-export type PageModule = typeof PAGE_MODULES[number];
+export type PageModule = (typeof PAGE_MODULES)[number];
 export interface TaskPageContext {
   contractVersion: typeof PAGE_CONTEXT_VERSION;
   module: PageModule;
@@ -21,7 +21,12 @@ const kinds: Partial<Record<PageModule, TaskObject["kind"]>> = {
   segment: "segment", catalog: "product", solution: "solution", campaign: "campaign", delivery: "project", planning: "sales_plan",
 };
 
-export const PAGE_FILTERS = ["status","year","period","scope","region","owner","sort","dir","revision","query","level","health","stage","forecast","priority","type","plan","view","planRevision","perspective","evidence","outcome","reason","dates","q"] as const;
+export const PAGE_FILTERS = [
+  "screen",
+  "metric",
+  "filter",
+  "status","year","period","scope","region","owner","sort","dir","revision","query","level","health","stage","forecast","priority","type","plan","view","planRevision","perspective","evidence","outcome","reason","dates","q",
+] as const;
 export const validPageFilter = (key: string, value: unknown): value is string => {
   if (!(PAGE_FILTERS as readonly string[]).includes(key) || typeof value !== "string") return false;
   if (key === "query" || key === "q") return value.length <= 160 && !/[\x00-\x1f]/.test(value);

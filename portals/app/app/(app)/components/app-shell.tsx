@@ -32,6 +32,11 @@ import { formatPhone } from "../lib/format-phone";
 import { writeLocale } from "../lib/i18n/write-locale";
 import type { ResolvedNavEntry } from "../lib/navigation";
 import { DomainLauncher } from "./domain-launcher";
+import {
+  AttainmentNav,
+  AttainmentNavContext,
+  type AttainmentNavData,
+} from "../attainment/navigation";
 import { AdminNav } from "./admin-nav";
 import { XiaoyuDock } from "./xiaoyu-dock";
 import { AssistantWidthProvider } from "./assistant-width";
@@ -208,6 +213,11 @@ export function AppShell({
   const isDossierPage = isDossierRoute(segments);
   const [adminNavExpanded, setAdminNavExpanded] = useState(adminNavOpen);
   const isAdmin = segments[0] === "admin";
+  const isAttainment = segments[0] === "attainment";
+  const [attainmentNav, setAttainmentNav] = useState<AttainmentNavData | null>(
+    null,
+  );
+  const [attainmentExpanded, setAttainmentExpanded] = useState(true);
   const [dockState, setDockState] = useState({ path: pathname, open: pathname === "/copilot/today" ? false : dockOpen });
   const inheritedDockOpen = pathname !== "/copilot/today" && dockState.open;
   const showDock = dockState.path === pathname ? dockState.open : inheritedDockOpen;
@@ -310,7 +320,8 @@ export function AppShell({
           }));
 
   return (
-    <AssistantWidthProvider width={assistantWidth} toggle={changeAssistantWidth}>
+    <AttainmentNavContext.Provider value={setAttainmentNav}>
+      <AssistantWidthProvider width={assistantWidth} toggle={changeAssistantWidth}>
     <AssistantVisibilityProvider open={() => setDock(true)} close={closeAssistant} isOpen={deckVisible}>
     <FormAssistSlotProvider>
     <WorkspaceLayoutProvider width={pageWidth} leftOpen={leftOpen}>
@@ -319,8 +330,12 @@ export function AppShell({
       // Administration uses the DS navigation slot. Business pages keep their
       // content and assistant in the body; object details also supply a dossier.
       sidebar={isAdmin ? <AdminNav nav={admin} pathname={pathname}
-        collapsed={!adminNavExpanded} onToggleCollapsed={toggleAdminNav} /> : null}
-      sidebarMode={isAdmin ? (adminNavExpanded ? "expanded" : "collapsed") : "hidden"}
+        collapsed={!adminNavExpanded} onToggleCollapsed={toggleAdminNav} /> : isAttainment ? (
+        <AttainmentNav data={attainmentNav} collapsed={!attainmentExpanded}
+          onToggleCollapsed={() => setAttainmentExpanded((v) => !v)} />
+      ) : null}
+      sidebarMode={isAdmin ? (adminNavExpanded ? "expanded" : "collapsed")
+        : isAttainment ? (attainmentExpanded ? "expanded" : "collapsed") : "hidden"}
       dock={assistantAvailable ? (
         <div ref={dockRef} aria-hidden={!deckVisible} inert={!deckVisible} className={workspaceInsets.assistantDock} data-pane-open={deckVisible}
           data-assistant-width={assistantWidth}>
@@ -585,5 +600,6 @@ export function AppShell({
     </FormAssistSlotProvider>
     </AssistantVisibilityProvider>
     </AssistantWidthProvider>
+    </AttainmentNavContext.Provider>
   );
 }

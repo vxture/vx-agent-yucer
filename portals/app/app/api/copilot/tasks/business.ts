@@ -1,6 +1,6 @@
 import { listLeads } from "../../../domains/signal/service";
 import { listProjects } from "../../../domains/delivery/service";
-import { listTargets } from "../../../domains/planning/service";
+import { readTargetAnalysis } from "../../../domains/pipeline/target-analysis";
 import { featureKeysFor } from "../../../entitlement/capability";
 import { getAuthzStore } from "../../../authz/store";
 import { segmentVocabulary } from "../../../domains/strategy/segment-assist-service";
@@ -94,8 +94,14 @@ export async function businessRecords(
       return result.value.filter(row=>visible.has(row.accountId)).map(data=>({object:{kind:"project" as const,id:data.id},data}));
     }
     case "sales_target": {
-      const result=await listTargets({...base,store:(await import("../../../domains/shared/registry")).getPlanningStore()});
-      if(!result.ok)throw Error("permission_denied");return result.value.filter(row=>session.scope.kind==="workspace"||row.ownerSub===session.user.sub).map(data=>({object:{kind,id:data.id},data}));
+      const data =await readTargetAnalysis({...base,
+          scope: session.scope,store:(await import("../../../domains/shared/registry")).getPlanningStore(),
+          plans: getSalesPlanStore(),
+          pipeline: session.stores.pipeline(),
+          accounts: session.stores.account(),
+        },
+        year,
+      );return data.map(data=>({object:{kind,id:data.id},data}));
     }
     case "account": {
       const r = await listAccounts({

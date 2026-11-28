@@ -1,3 +1,5 @@
+import { forecastNewLogos } from "./cooperation-read";
+import type { AccountStore } from "../account/store";
 // D6 application service: the layer that composes gate -> rule -> persistence.
 //
 // design_yucer_100 section 5 defines four layers that tighten progressively, and
@@ -1556,7 +1558,7 @@ export interface ForecastScorecard {
  * against it either way.
  */
 export async function forecastScorecard(
-  ctx: PipelineContext & { catalog: CatalogStore },
+  ctx: PipelineContext & { catalog: CatalogStore; accounts?: AccountStore; completeCooperationRoster?: boolean },
   period: string,
   opts: { now?: Date; scope?: ForecastScope } = {},
 ): Promise<RuleResult<ForecastScorecard>> {
@@ -1601,6 +1603,7 @@ export async function forecastScorecard(
   const policy = await ctx.catalog.getPricingPolicy(ctx.workspaceId);
   const live = planSnapshot({
     period, scope, opportunities, snapshotAt: now, currency: policy.defaultCurrency,
+    verifiedNewLogoCount: await forecastNewLogos(ctx, period, scope),
   });
   if (!live.ok) return live as RuleResult<ForecastScorecard>;
 
@@ -1658,7 +1661,7 @@ export async function forecastScorecard(
  * period and scope have no snapshot yet: there is nothing to have changed from.
  */
 export async function forecastChange(
-  ctx: PipelineContext & { catalog: CatalogStore },
+  ctx: PipelineContext & { catalog: CatalogStore; accounts?: AccountStore; completeCooperationRoster?: boolean },
   period: string,
   scope: ForecastScope,
   opts: { now?: Date } = {},
@@ -1679,7 +1682,9 @@ export async function forecastChange(
     ctx.catalog.getPricingPolicy(ctx.workspaceId),
     ctx.store.listClaimEventsSince(ctx.workspaceId, last.snapshotAt),
   ]);
-  const live = planSnapshot({ period, scope, opportunities, snapshotAt: opts.now ?? new Date(), currency: policy.defaultCurrency });
+  const live = planSnapshot({ period, scope, opportunities, snapshotAt: opts.now ?? new Date(), currency: policy.defaultCurrency,
+    verifiedNewLogoCount: await forecastNewLogos(ctx, period, scope),
+  });
   if (!live.ok) return live as RuleResult<null>;
 
   const deals: ChangeDeal[] = opportunities.map((o) => ({
@@ -1704,7 +1709,7 @@ export async function forecastChange(
 }
 
 export async function submitForecast(
-  ctx: PipelineContext & { catalog: CatalogStore },
+  ctx: PipelineContext & { catalog: CatalogStore; accounts?: AccountStore; completeCooperationRoster?: boolean },
   input: {
     period: string;
     scope: ForecastScope;
@@ -1730,6 +1735,11 @@ export async function submitForecast(
     ...input,
     currency: input.currency ?? policy.defaultCurrency,
     opportunities,
+    verifiedNewLogoCount: await forecastNewLogos(
+      ctx,
+      input.period,
+      input.scope,
+    ),
     // Who submitted is the session subject, never a caller's claim (0096).
     submittedBySub: ctx.sub,
   });

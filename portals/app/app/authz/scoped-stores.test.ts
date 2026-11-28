@@ -206,7 +206,7 @@ const PORTS: Array<{
     name: "AccountStore",
     file: "../domains/account/store.ts",
     wrap: scopeAccountStore as never,
-    scopedReads: { listAccounts: [], getAccount: null },
+    scopedReads: { listAccounts: [], getAccount: null, listCooperationHistory: [] },
   },
   {
     name: "SignalStore",
@@ -231,6 +231,7 @@ for (const port of PORTS) {
       // Composite review reads check a visible parent or filter before limit;
       // the dedicated review-scope test below covers their ordered behavior.
       if (port.name === "PipelineStore" && ["getWinLossReview", "listWinLossReviews", "listUnreviewedClosed"].includes(m)) continue;
+      if (port.name === "AccountStore" && ["listCooperationHistory", "appendCooperationHistory"].includes(m)) continue;
       const wrapped = port.wrap(proxy as never, MINE) as Record<
         string,
         (...a: readonly unknown[]) => Promise<unknown>
@@ -309,4 +310,17 @@ test("review debt and review reads stay inside the deal scope, including when a 
   assert.equal(await scoped.getWinLossReview(WS,"theirs"),null);
   assert.deepEqual((await scoped.listWinLossReviews(WS,["mine","theirs"])).map(r=>r.opportunityId),["mine"]);
   assert.deepEqual(await scoped.listWinLossReviews("ws_other",["mine"]),[]);
+});
+
+
+test("cooperation history reads and writes follow the visible customer scope", async () => {
+  const inner = new InMemoryAccountStore();
+  inner.seed({accounts:[account({id:"acc_mine",ownerSub:"usr_me"}),account({id:"acc_theirs"})]});
+  const assertion={id:"h1",accountId:"acc_mine",state:"unknown" as const,firstDate:null,beforeYear:null,acquisitionOwnerSub:null,acquisitionTerritoryId:null,evidence:"Verified register",recordedAt:"2026-01-01T00:00:00Z",recordedBy:"usr_me",requestKey:"scope-1"};
+  await inner.appendCooperationHistory(WS,assertion);
+  await inner.appendCooperationHistory(WS,{...assertion,id:"h2",accountId:"acc_theirs",requestKey:"scope-2"});
+  const scoped=scopeAccountStore(inner,MINE);
+  assert.deepEqual((await scoped.listCooperationHistory(WS)).map(r=>r.accountId),["acc_mine"]);
+  await assert.rejects(scoped.appendCooperationHistory(WS,{...assertion,id:"h3",accountId:"acc_theirs",requestKey:"scope-3"}),/not_found/);
+  assert.equal((await scoped.appendCooperationHistory(WS,{...assertion,id:"h4",requestKey:"scope-4"})).id,"h4");
 });

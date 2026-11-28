@@ -1,3 +1,5 @@
+import type { TargetMetric } from "./lib/target";
+import type { MarginRates } from "./plan-margin";
 import { can } from "../../authz/decide";
 import { canReadReportingScope } from "../../authz/forecast-scope";
 import { readEffectiveTargetSnapshot } from "./effective-targets";
@@ -29,6 +31,11 @@ export type AttainmentTarget = {
   source: "sales_plan" | "legacy";
   revision: AttainmentRevision | null;
 };
+export type AttainmentMetricTarget = Omit<AttainmentTarget, "currency"> & {
+  metric: TargetMetric;
+  currency: string | null;
+  marginRates?: MarginRates;
+};
 export type AttainmentPlan = {
   year: number;
   observedAt: string;
@@ -38,6 +45,7 @@ export type AttainmentPlan = {
   scheduled: AttainmentRevision | null;
   historical: AttainmentRevision[];
   targets: AttainmentTarget[];
+  metricTargets?: AttainmentMetricTarget[];
   regions: {
     id: string;
     name: string;
@@ -83,7 +91,6 @@ export async function readAttainmentPlans(
     /^(?:Y)?(\d{4})(?:$|Q[1-4]$|-(?:0[1-9]|1[0-2])$)/.exec(p)?.[1];
   const visibleTargets = targets.filter(
     (t) =>
-      t.metric === "revenue" &&
       t.status !== "draft" &&
       (!revisionId || t.managedBySalesPlan) &&
       canReadReportingScope(ctx.scope, t, ctx.sub),
@@ -121,14 +128,13 @@ export async function readAttainmentPlans(
       };
     };
     const current = revision(state?.current ?? null);
-    const chosen = revisionId ? plan?.revisions.find(r => r.id === revisionId) ?? null : state?.current ?? null;
+    const chosen = revisionId ? (plan?.revisions.find(r => r.id === revisionId) ?? null)
+      : (state?.current ?? null);
     const selected = revision(chosen);
     const content = chosen?.content;
     const baselineContent = state?.baseline?.content;
-    const rows: AttainmentTarget[] = visibleTargets.flatMap((t) => {
-      if (
-        t.targetValue.unit !== "money" ||
-        periodYear(t.period) !== String(year)
+    const metricRows: AttainmentMetricTarget[] = visibleTargets.flatMap((t) => {
+      if (periodYear(t.period) !== String(year)
       )
         return [];
       const scope =
@@ -139,7 +145,7 @@ export async function readAttainmentPlans(
             : `owner:${t.ownerSub}`;
       const line = content?.targets.find(
         (l) =>
-          l.metric === "revenue" &&
+          l.metric === t.metric &&
           l.scope === scope &&
           l.period === normalized(t.period) &&
           l.currency ===
@@ -147,7 +153,7 @@ export async function readAttainmentPlans(
       );
       const base = baselineContent?.targets.find(
         (l) =>
-          l.metric === "revenue" &&
+          l.metric === t.metric &&
           l.scope === scope &&
           l.period === normalized(t.period) &&
           l.currency === line?.currency,
@@ -162,7 +168,9 @@ export async function readAttainmentPlans(
           key: line?.key ?? t.id,
           period: normalized(t.period),
           scope,
-          currency: t.targetValue.currency,
+          currency: t.targetValue.unit === "money" ? t.targetValue.currency : null,
+          metric: t.metric,
+          marginRates: line?.marginRates,
           target: t.targetValue.amount,
           floor: line?.floor == null ? null : Number(line.floor),
           stretch: line?.stretch == null ? null : Number(line.stretch),
@@ -201,7 +209,11 @@ export async function readAttainmentPlans(
               return r && e.effectiveAt <= observedAt ? [revision(r)!] : [];
             })
           : [],
-      targets: rows,
+      targets: metricRows.filter(
+        (t): t is AttainmentMetricTarget & { currency: string; } =>
+          t.metric === "revenue" && t.currency !== null,
+      ),
+      metricTargets: metricRows,
       regions: regions.map(({ id, name, provinces, included }) => ({
         id,
         name,

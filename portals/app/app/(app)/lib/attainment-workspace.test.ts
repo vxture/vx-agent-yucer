@@ -318,7 +318,7 @@ test("all and missing periods open the current annual target across every intern
         now,
       );
       assert.equal(q.period, "Y2027");
-      assert.equal(q.invalid, false);
+      assert.equal(q.invalid, period === "wrong");
     }
   }
   assert.equal(

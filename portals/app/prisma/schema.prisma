@@ -2748,3 +2748,44 @@ model AgentExecutionReceipt {
   @@map("agent_execution_receipt")
   @@schema("yucer_agent")
 }
+
+/// First cooperation assertions include pre-system history. Corrections append.
+model AccountCooperationHistory {
+  id                       String @id @default(uuid()) @db.Uuid
+  sequence                 BigInt @default(autoincrement())
+  workspaceId              String @map("workspace_id") @db.Uuid
+  accountId                String @map("account_id") @db.Uuid
+  state                    String @db.VarChar(16)
+  firstDate                DateTime? @map("first_date") @db.Date
+  beforeYear               Int? @map("before_year") @db.SmallInt
+  acquisitionOwnerSub      String? @map("acquisition_owner_sub") @db.VarChar(128)
+  acquisitionTerritoryId   String? @map("acquisition_territory_id") @db.Uuid
+  evidence                 String @db.VarChar(500)
+  recordedAt               DateTime @default(now()) @map("recorded_at") @db.Timestamptz()
+  recordedBy               String @map("recorded_by") @db.VarChar(128)
+  requestKey               String @map("request_key") @db.VarChar(128)
+  @@unique([workspaceId, requestKey], map: "uidx_cooperation_request")
+  @@index([workspaceId, accountId, sequence], map: "idx_cooperation_account")
+  @@map("account_cooperation_history")
+  @@schema("yucer_core")
+}
+
+/// Verified outcomes for published customer actions; corrections append.
+model PlanActionResult {
+  id String @id @default(uuid()) @db.Uuid
+  sequence BigInt @default(autoincrement())
+  workspaceId String @map("workspace_id") @db.Uuid
+  revisionId String @map("revision_id") @db.Uuid
+  actionKey String @map("action_key") @db.VarChar(128)
+  accountId String @map("account_id") @db.Uuid
+  met Boolean
+  evidence String @db.VarChar(500)
+  occurredAt DateTime @map("occurred_at") @db.Date
+  recordedAt DateTime @default(now()) @map("recorded_at") @db.Timestamptz()
+  recordedBy String @map("recorded_by") @db.VarChar(128)
+  requestKey String @map("request_key") @db.VarChar(128)
+  @@unique([workspaceId,requestKey], map:"uidx_plan_action_result_request")
+  @@index([workspaceId,revisionId,actionKey,sequence], map:"idx_plan_action_result")
+  @@map("plan_action_result")
+  @@schema("yucer_gtm")
+}
