@@ -398,6 +398,12 @@ export type CustomerProjectGroup = {
   owned: AnalysisDeal[];
   other: AnalysisDeal[];
 };
+// ICU collation differs between server and browser. This order must hydrate
+// identically, including distinct registered customers with the same name.
+function compareStableText(a: string, b: string) {
+  if (a === b) return 0;
+  return a < b ? -1 : 1;
+}
 export function customerProjects(
   accounts: readonly AnalysisAccount[],
   deals: readonly AnalysisDeal[],
@@ -434,6 +440,8 @@ export function customerProjects(
       ).length -
         a.projects.filter(
           (d) => d.status === "open" && (!d.amount || !d.expectedCloseAt),
-        ).length || a.account.name.localeCompare(b.account.name),
+        ).length ||
+      compareStableText(a.account.name, b.account.name) ||
+      compareStableText(a.account.id, b.account.id),
   );
 }
