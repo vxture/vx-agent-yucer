@@ -40,13 +40,13 @@ importers:
         version: 7.10.1
       '@prisma/client':
         specifier: ^7.10.1
-        version: 7.10.1(prisma@7.10.1(@types/node@22.20.5)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(typescript@7.0.2))(typescript@7.0.2)
+        version: 7.10.1(prisma@7.10.1(@types/node@22.20.6)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(typescript@7.0.2))(typescript@7.0.2)
       '@vxture/design-system':
         specifier: latest
-        version: 15.6.1(@phosphor-icons/react@2.1.10(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(next-themes@0.4.6(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(tailwindcss-animate@1.0.7(tailwindcss@4.3.5))(tailwindcss@4.3.5)
+        version: 15.8.0(@phosphor-icons/react@2.1.10(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(next-themes@0.4.6(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(tailwindcss-animate@1.0.7(tailwindcss@4.3.5))(tailwindcss@4.3.5)
       '@vxture/design-ui':
         specifier: latest
-        version: 12.5.1(@phosphor-icons/react@2.1.10(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(tailwindcss@4.3.5)
+        version: 12.7.0(@phosphor-icons/react@2.1.10(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(tailwindcss@4.3.5)
       '@vxture/shared':
         specifier: ^2.0.0
         version: 2.0.0
@@ -61,7 +61,7 @@ importers:
         version: 6.2.17
       next:
         specifier: ^16.4.6
-        version: 16.4.6(@types/node@22.20.5)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+        version: 16.4.6(@types/node@22.20.6)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       next-themes:
         specifier: ^0.4.6
         version: 0.4.6(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
@@ -91,8 +91,8 @@ importers:
         specifier: ^4.3.5
         version: 4.3.5
       '@types/node':
-        specifier: ^22.20.5
-        version: 22.20.5
+        specifier: ^22.20.6
+        version: 22.20.6
       '@types/pg':
         specifier: ^8.23.1
         version: 8.23.1
@@ -104,7 +104,7 @@ importers:
         version: 19.3.0(@types/react@19.3.0)
       prisma:
         specifier: ^7.10.1
-        version: 7.10.1(@types/node@22.20.5)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(typescript@7.0.2)
+        version: 7.10.1(@types/node@22.20.6)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(typescript@7.0.2)
       tsx:
         specifier: ^4.23.15
         version: 4.23.15
@@ -116,14 +116,14 @@ importers:
     dependencies:
       next:
         specifier: ^16.4.6
-        version: 16.4.6(@types/node@22.20.5)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+        version: 16.4.6(@types/node@22.20.6)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       react:
         specifier: ^19.3.1
         version: 19.3.1
     devDependencies:
       '@types/node':
-        specifier: ^22.20.5
-        version: 22.20.5
+        specifier: ^22.20.6
+        version: 22.20.6
       typescript:
         specifier: ^7.0.2
         version: 7.0.2
@@ -1436,8 +1436,8 @@ packages:
   '@types/ms@2.1.0':
     resolution: {integrity: sha512-GsCCIZDE/p3i96vtEqx+7dBUGXrc7zeSK3wwPHIaRThS+9OhWIXRqzs4d6k1SVU8g91DrNRWxWUGhp5KXQb2VA==}
 
-  '@types/node@22.20.5':
-    resolution: {integrity: sha512-U2+DNr+wSjpsTS/wZGYHq7GcwfuSmKiKvoPvK22zwTlRhU91yOniN4qRR5KhIjvif7ysw/dz/hKmfDH0Ris4aA==}
+  '@types/node@22.20.6':
+    resolution: {integrity: sha512-vDsVXyIC4vhuGfe+eMMqJ5VP2BMqeWcbvMIoHIeE0nbY6qyrJSnxBpw2zIL7/tv55/Zf7lzKbdlq+lq+wt5N5w==}
 
   '@types/pg@8.23.1':
     resolution: {integrity: sha512-fKVHpikPdg4GKks3JuLEhvwSyvwzF23hnabPy6DD8ljVbC7+6J5dQzdv4arV6jqq57djnMgs1HKBxX4P8aBI3A==}
@@ -1614,8 +1614,8 @@ packages:
   '@visx/vendor@4.0.0-alpha.0':
     resolution: {integrity: sha512-6I+MuqXBcv9jnlcVowHoHKSdk9gXTWkHLKyqBwRWg7LY6A3Ei8SHfubpqGV5rBUSppxMq2RszPJUS6w+H0YgmQ==}
 
-  '@vxture/design-system@15.6.1':
-    resolution: {integrity: sha512-4oDhYGLiYtL+KngA5OePcTBStqZ9v/uH/zG49yUA5FPqm3f8+vweGXrUiXAatiViGe5tQehlY5OZrRFLqdeo6g==, tarball: https://npm.pkg.github.com/download/@vxture/design-system/15.6.1/fbfb389a1b7d312d8183a4713b7ab8ca39b20e9b}
+  '@vxture/design-system@15.8.0':
+    resolution: {integrity: sha512-gFWv5/EqhendVo4GhdRsbjohs4qsVTBsBdBFxFO6s+NdL+olUowWczcMCJo5lRNhPlsDyBExZ+JU/siv9QFkcQ==, tarball: https://npm.pkg.github.com/download/@vxture/design-system/15.8.0/3113d0e5e7b4e03d6cd08fb2ce048ae4b4f1ef34}
     engines: {node: '>=22.0.0'}
     peerDependencies:
       '@phosphor-icons/react': ^2.1.10
@@ -1630,8 +1630,8 @@ packages:
     peerDependencies:
       tailwindcss: ^4.0.0
 
-  '@vxture/design-ui@12.5.1':
-    resolution: {integrity: sha512-HlWTZCPYacHp0B7obCDC7PmSNhvuc0nFzbGl6CkHooIVvmCHEvhUArOEGxC+BTIjMZzd43jlruiolD7qf93l4g==, tarball: https://npm.pkg.github.com/download/@vxture/design-ui/12.5.1/8c464719f69aa767b2fba197a829ad3b423bd8ae}
+  '@vxture/design-ui@12.7.0':
+    resolution: {integrity: sha512-C0CxDxKsHD2HIsbpkIcRijxOqEZxU/Q62TZaNJ8MdAVPwnGNMiyDf8CtdQAxW6rSlvd2KJvvtozyMY8/KFbXFg==, tarball: https://npm.pkg.github.com/download/@vxture/design-ui/12.7.0/57bbc53dba9e1a60f699113de029cbcb24c24d62}
     peerDependencies:
       '@phosphor-icons/react': ^2.1.10
       react: ^19.0.0
@@ -2951,11 +2951,11 @@ snapshots:
 
   '@prisma/client-runtime-utils@7.10.1': {}
 
-  '@prisma/client@7.10.1(prisma@7.10.1(@types/node@22.20.5)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(typescript@7.0.2))(typescript@7.0.2)':
+  '@prisma/client@7.10.1(prisma@7.10.1(@types/node@22.20.6)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(typescript@7.0.2))(typescript@7.0.2)':
     dependencies:
       '@prisma/client-runtime-utils': 7.10.1
     optionalDependencies:
-      prisma: 7.10.1(@types/node@22.20.5)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(typescript@7.0.2)
+      prisma: 7.10.1(@types/node@22.20.6)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(typescript@7.0.2)
       typescript: 7.0.2
 
   '@prisma/config@7.10.1':
@@ -3835,13 +3835,13 @@ snapshots:
 
   '@types/ms@2.1.0': {}
 
-  '@types/node@22.20.5':
+  '@types/node@22.20.6':
     dependencies:
       undici-types: 6.21.0
 
   '@types/pg@8.23.1':
     dependencies:
-      '@types/node': 22.20.5
+      '@types/node': 22.20.6
       pg-protocol: 1.15.0
       pg-types: 2.2.0
 
@@ -3996,14 +3996,14 @@ snapshots:
       d3-time-format: 4.1.0
       internmap: 2.0.3
 
-  '@vxture/design-system@15.6.1(@phosphor-icons/react@2.1.10(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(next-themes@0.4.6(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(tailwindcss-animate@1.0.7(tailwindcss@4.3.5))(tailwindcss@4.3.5)':
+  '@vxture/design-system@15.8.0(@phosphor-icons/react@2.1.10(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(next-themes@0.4.6(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(tailwindcss-animate@1.0.7(tailwindcss@4.3.5))(tailwindcss@4.3.5)':
     dependencies:
       '@fontsource/funnel-display': 5.3.0
       '@fontsource/geist-mono': 5.3.0
       '@fontsource/inter': 5.3.0
       '@phosphor-icons/react': 2.1.10(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       '@vxture/design-tokens': 4.1.0(tailwindcss@4.3.5)
-      '@vxture/design-ui': 12.5.1(@phosphor-icons/react@2.1.10(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(tailwindcss@4.3.5)
+      '@vxture/design-ui': 12.7.0(@phosphor-icons/react@2.1.10(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(tailwindcss@4.3.5)
       next-themes: 0.4.6(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       react: 19.3.1
       react-dom: 19.3.1(react@19.3.1)
@@ -4018,7 +4018,7 @@ snapshots:
       tailwindcss: 4.3.5
       tailwindcss-animate: 1.0.7(tailwindcss@4.3.5)
 
-  '@vxture/design-ui@12.5.1(@phosphor-icons/react@2.1.10(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(tailwindcss@4.3.5)':
+  '@vxture/design-ui@12.7.0(@phosphor-icons/react@2.1.10(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(tailwindcss@4.3.5)':
     dependencies:
       '@phosphor-icons/react': 2.1.10(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       '@radix-ui/react-accordion': 1.3.1(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
@@ -4821,9 +4821,9 @@ snapshots:
 
   ms@2.1.3: {}
 
-  mysql2@3.24.4(@types/node@22.20.5):
+  mysql2@3.24.4(@types/node@22.20.6):
     dependencies:
-      '@types/node': 22.20.5
+      '@types/node': 22.20.6
       aws-ssl-profiles: 1.1.2
       generate-function: 2.3.1
       iconv-lite: 0.7.3
@@ -4843,7 +4843,7 @@ snapshots:
       react: 19.3.1
       react-dom: 19.3.1(react@19.3.1)
 
-  next@16.4.6(@types/node@22.20.5)(react-dom@19.3.1(react@19.3.1))(react@19.3.1):
+  next@16.4.6(@types/node@22.20.6)(react-dom@19.3.1(react@19.3.1))(react@19.3.1):
     dependencies:
       '@next/env': 16.4.6
       '@swc/helpers': 0.5.23
@@ -4862,7 +4862,7 @@ snapshots:
       '@next/swc-linux-x64-musl': 16.4.6
       '@next/swc-win32-arm64-msvc': 16.4.6
       '@next/swc-win32-x64-msvc': 16.4.6
-      sharp: 0.35.5(@types/node@22.20.5)
+      sharp: 0.35.5(@types/node@22.20.6)
     transitivePeerDependencies:
       - '@babel/core'
       - '@types/node'
@@ -4957,13 +4957,13 @@ snapshots:
 
   postgres@3.4.7: {}
 
-  prisma@7.10.1(@types/node@22.20.5)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(typescript@7.0.2):
+  prisma@7.10.1(@types/node@22.20.6)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(typescript@7.0.2):
     dependencies:
       '@prisma/config': 7.10.1
       '@prisma/dev': 0.24.17(typescript@7.0.2)
       '@prisma/engines': 7.10.1
       '@prisma/studio-core': 0.33.0(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
-      mysql2: 3.24.4(@types/node@22.20.5)
+      mysql2: 3.24.4(@types/node@22.20.6)
       postgres: 3.4.7
     optionalDependencies:
       typescript: 7.0.2
@@ -5116,7 +5116,7 @@ snapshots:
   semver@7.8.5:
     optional: true
 
-  sharp@0.35.5(@types/node@22.20.5):
+  sharp@0.35.5(@types/node@22.20.6):
     dependencies:
       '@img/colour': 1.1.0
       detect-libc: 2.1.2
@@ -5147,7 +5147,7 @@ snapshots:
       '@img/sharp-win32-arm64': 0.35.5
       '@img/sharp-win32-ia32': 0.35.5
       '@img/sharp-win32-x64': 0.35.5
-      '@types/node': 22.20.5
+      '@types/node': 22.20.6
     optional: true
 
   shebang-command@2.0.0:
