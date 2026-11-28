@@ -294,12 +294,21 @@ and release notes are on docs/v150-release-checkpoint. Eight views use reusable 
 components and scoped CSS with DS tokens. After reviewing the corrections, the
 owner explicitly authorized their unified release on 2026-11-28. PR#837 is
 merged at d6b7cd8c; PR/main six required checks and CodeQL passed, PR Sonar
-passed, main retains the baseline E/C gate tracked in#684. v0.1.150 is built;
-its release/commit digests and d6b7cd8c / production identity agree. Run46172872806
-is waiting for owner-only production approval; the agent has requested that
-click and has not approved it. Browser health still confirms v0.1.149 before
-approval. No DDL or configuration changed; live correction acceptance remains
-pending. Customer attainment
+passed, main retains the baseline E/C gate tracked in#684. The owner personally
+approved run46172872806; deployment succeeded at2026-11-28T18:05:53Z. v0.1.150
+is live; release/commit registry digests, actual ACR pull, logs and browser
+health agree on d6b7cd8c / production. No DDL or configuration changed.
+Forty-seven unique signed-in live checks passed across all eight screens,
+matrix tooltips, region hover, single-member team reset/hover, native year
+pickers, viewport-bottom cues, paired forecast details and narrow/wide dark
+large text. The first script failures are retained: tooltip delay, native-picker
+foreground requirement and an invalid multi-member assertion on one member.
+Only the interrupted controls were repeated after correcting test preconditions;
+no product code changed. This review made no business writes or model calls.
+Actual customer-goal saving, multi-member dimming/revocation and cross-space
+acceptance remain pending; do not mark the whole AT-R1 batch complete. Original
+working tabs and preview4060 are preserved. Future unreviewed fixes need their
+own release direction. Customer attainment
 contains formal outcome indicators only, not visit/execution plans. Regional
 and team charts share transient hover state; click selection stays separate.
 The team dashboard fills the available viewport. Personal responsibility reads
