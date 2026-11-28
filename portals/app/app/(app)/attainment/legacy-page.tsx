@@ -29,7 +29,7 @@ import {
   loadAttainmentTeam,
 } from "./board";
 import { AttainmentOverview } from "./overview";
-import { AttainmentForecastView } from "./forecast-view";
+import { AttainmentForecastView } from "./legacy-forecast-view";
 import { canReadReportingScope } from "../../authz/forecast-scope";
 import { AttainmentContext } from "../components/attainment-context";
 import { PageActionButton } from "../components/page-header-actions";

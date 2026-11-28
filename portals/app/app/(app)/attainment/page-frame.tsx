@@ -1,7 +1,8 @@
 "use client";
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { useSearchParams } from "next/navigation";
-import { Button, Icon } from "@vxture/design-system";
+import { Icon } from "@vxture/design-system";
 import { useLocale } from "../lib/i18n/provider";
 import styles from "./workspace.module.css";
 
@@ -16,6 +17,8 @@ export function AttainmentPageFrame({
   const params = useSearchParams();
   const identity = `${params.get("screen") ?? ""}|${params.get("scope") ?? ""}`;
   const [guidance, setGuidance] = useState<"none" | "more" | "end">("none");
+  const [cueLeft, setCueLeft] = useState<number | null>(null);
+  const [viewportHeight, setViewportHeight] = useState<number | undefined>();
   const locale = useLocale();
   useEffect(() => {
     const scroll = content.current?.closest<HTMLElement>(
@@ -34,10 +37,17 @@ export function AttainmentPageFrame({
       scroll = node?.closest<HTMLElement>('[data-workspace-scroll="content"]');
     if (!node || !scroll) return;
     const measure = () => {
+      const bounds = scroll.getBoundingClientRect();
+      setCueLeft((Math.max(0, bounds.left) + Math.min(window.innerWidth, bounds.right)) / 2);
+      if (fitted) {
+        const containerStyle = getComputedStyle(node.parentElement!.parentElement!);
+        setViewportHeight(Math.max(0, scroll.clientHeight -
+          parseFloat(containerStyle.paddingTop) - parseFloat(containerStyle.paddingBottom)));
+      }
       const dialog = !!document.querySelector(
         '[role="dialog"][data-state="open"]',
       );
-      const needed = node.getBoundingClientRect().height > scroll.clientHeight;
+      const needed = scroll.scrollHeight > scroll.clientHeight + 2;
       setGuidance(
         !needed || dialog
           ? "none"
@@ -65,42 +75,34 @@ export function AttainmentPageFrame({
     };
   }, [fitted]);
   return (
-    <div className={styles.page} data-attainment-fitted={fitted}>
-      <div ref={content} className="flex min-w-0 flex-col gap-xl">
+    <div className={styles.page} data-attainment-fitted={fitted}
+      style={fitted ? { minHeight: viewportHeight } : undefined}>
+      <div ref={content} className="flex min-w-0 flex-col gap-xl"
+        style={fitted ? { minHeight: viewportHeight } : undefined}>
         {children}
       </div>
-      <div className={styles.scrollCue} aria-live="polite">
-        {guidance === "more" ? (
-          <Button
-            size="icon-md"
-            variant="outline"
-            aria-label={
-              locale.startsWith("zh")
-                ? "\u7ee7\u7eed\u5411\u4e0b\u9605\u8bfb"
-                : "Continue reading"
-            }
-            onClick={() => {
-              const scroll = content.current?.closest<HTMLElement>(
-                '[data-workspace-scroll="content"]',
-              );
-              scroll?.scrollBy({
-                top: scroll.clientHeight * 0.75,
-                behavior: matchMedia("(prefers-reduced-motion: reduce)").matches
-                  ? "instant"
-                  : "smooth",
-              });
-            }}
-          >
-            <Icon name="caret-double-down" size="sm" />
-          </Button>
-        ) : guidance === "end" ? (
-          <span className="rounded-full bg-background px-md py-xs text-body-small text-muted-foreground">
-            {locale.startsWith("zh")
-              ? "\u2014 \u5df2\u5230\u9875\u9762\u5e95\u90e8 \u2014"
-              : "\u2014 End of page \u2014"}
-          </span>
-        ) : null}
-      </div>
+      {guidance !== "none" && cueLeft !== null && createPortal(
+        <div className={styles.scrollCue} style={{ left: cueLeft }}
+          role="status" aria-live="polite" aria-atomic="true">
+          {guidance === "more" ? (
+            <>
+              <Icon name="caret-double-down" size="sm" aria-hidden="true" />
+              <span className="sr-only">
+                {locale.startsWith("zh")
+                  ? "\u4e0b\u65b9\u8fd8\u6709\u5185\u5bb9"
+                  : "More content below"}
+              </span>
+            </>
+          ) : (
+            <span>
+              {locale.startsWith("zh")
+                ? "\u2014 \u5df2\u5230\u9875\u9762\u5e95\u90e8 \u2014"
+                : "\u2014 End of page \u2014"}
+            </span>
+          )}
+        </div>,
+        document.body,
+      )}
     </div>
   );
 }

@@ -1392,6 +1392,7 @@
     }
   ],
   "preservedControls": {
+    "(app)/attainment/forecast-workbench.tsx": "Owner-reviewed forecast project choices display multiple lines of evidence and ownership; content sets height above a DS control minimum rather than clipping into an operation button.",
     "(app)/components/market-offering-card.tsx": "Owner-reviewed card headings are business navigation, retaining the DS heading role and content-driven height rather than the secondary action typography.",
     "(app)/components/product-roster.tsx": "The product title opens its price history and inherits the table title typography; it is a business reference, not a secondary operation control.",
     "(app)/components/solution-roster.tsx": "The solution title opens its details and inherits the table title typography; it is a business reference, not a secondary operation control.",

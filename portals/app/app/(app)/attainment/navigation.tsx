@@ -108,7 +108,7 @@ export function AttainmentNav({
         item(
           "customers",
           zh ? "\u5ba2\u6237\u8fbe\u6210" : "Customer attainment",
-          "users",
+          "flag",
           data?.workspace ? "workspace" : scope,
         ),
       ],
@@ -129,7 +129,7 @@ export function AttainmentNav({
         ...(data?.regions.map((r) =>
           item(
             "region",
-            `${r.name}${zh ? "\u8fbe\u6210" : " attainment"}`,
+            r.name,
             "map-pin",
             `territory:${r.id}`,
           ),
@@ -182,6 +182,12 @@ export function AttainmentNav({
       sections={sections}
       collapsed={collapsed}
       onToggleCollapsed={onToggleCollapsed}
+      labels={{
+        expandNav: zh ? "\u5c55\u5f00\u5bfc\u822a" : "Expand navigation",
+        collapseNav: zh ? "\u6536\u8d77\u5bfc\u822a" : "Collapse navigation",
+        expandAllGroups: zh ? "\u5c55\u5f00\u5168\u90e8\u5206\u7ec4" : "Expand all groups",
+        collapseAllGroups: zh ? "\u6536\u8d77\u5168\u90e8\u5206\u7ec4" : "Collapse all groups",
+      }}
       linkComponent={NavigationLink}
       storageKeyPrefix="yucer.attainment"
       isActive={(href) => {

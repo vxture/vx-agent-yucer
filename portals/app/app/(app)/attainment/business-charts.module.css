@@ -1,0 +1,460 @@
+.panel {
+  container-type: inline-size;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  padding: var(--space-md) var(--space-lg);
+  gap: var(--space-md);
+}
+.heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+}
+.heading h2 {
+  font-size: var(--body-font-size);
+  font-weight: var(--heading-3-font-weight);
+  line-height: var(--body-line-height);
+}
+.heading p {
+  margin-top: var(--space-2xs);
+  color: var(--muted-foreground);
+  font-size: var(--body-small-font-size);
+}
+.legend {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-sm);
+  font-size: var(--body-small-font-size);
+  color: var(--muted-foreground);
+}
+.legend span,
+.legendToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  white-space: nowrap;
+}
+.legend i,
+.distributionRows i {
+  display: inline-block;
+  width: var(--space-sm);
+  height: var(--space-sm);
+  flex: 0 0 auto;
+  border-radius: var(--radius-full);
+}
+.legend i[data-kind="tick"] {
+  border-radius: 0;
+  width: var(--border-width-thin);
+  height: var(--space-sm);
+  border-left: var(--border-width-thin) dashed var(--chart-axis);
+}
+.legend i[data-kind="dash"],
+.legend i[data-kind="line"] {
+  width: var(--space-md);
+  height: 0;
+  border-top: var(--border-width-thin) dashed var(--chart-axis);
+}
+.legend i[data-kind="line"] {
+  border-top-style: solid;
+}
+.legendToggle {
+  color: var(--foreground);
+  font-size: var(--body-small-font-size);
+}
+.legendToggle[aria-pressed="false"] {
+  opacity: var(--opacity-muted);
+  text-decoration: line-through;
+}
+.trackPlot {
+  --label-width: var(--spacing-table-col-fixed);
+  --value-width: calc(var(--spacing-table-col-fixed) * 1.15);
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: calc(var(--spacing-header-lg) * 4);
+  gap: var(--space-sm);
+}
+.trackPlot[data-chart-labels="people"] {
+  --label-width: calc(var(--spacing-table-col-fixed) * 1.8);
+}
+.trackRows {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  justify-content: space-around;
+  gap: var(--space-sm);
+}
+.trackRow {
+  display: grid;
+  grid-template-columns: var(--label-width) minmax(0, 1fr) var(--value-width);
+  align-items: center;
+  gap: var(--space-sm);
+  width: 100%;
+  min-height: var(--spacing-control-xl);
+  padding: var(--space-xs) 0;
+  text-align: left;
+  border-radius: var(--radius-sm);
+  color: var(--foreground);
+}
+.trackRow[data-selected="true"] {
+  background: var(--primary-muted);
+}
+.trackRow[data-hovered="true"],
+.matrixRow[data-hovered="true"],
+.distributionRows button[data-hovered="true"] {
+  background: var(--accent);
+  border-radius: var(--radius-sm);
+}
+.trackRow[data-dimmed="true"],
+.matrixRow[data-dimmed="true"],
+.donutArc[data-dimmed="true"],
+.trendSeries[data-dimmed="true"],
+.legendToggle[data-dimmed="true"],
+.distributionRows button[data-dimmed="true"] {
+  opacity: var(--opacity-disabled);
+}
+.rowLabel {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
+  font-size: var(--body-small-font-size);
+}
+.trackSlot {
+  position: relative;
+  display: block;
+  height: var(--space-lg);
+}
+.trackBack {
+  position: absolute;
+  height: 100%;
+  border-radius: var(--radius-sm);
+  background: var(--muted);
+}
+.trackFill {
+  position: absolute;
+  top: 15%;
+  height: 70%;
+  border-radius: var(--radius-sm);
+}
+.trackFill[data-rate="true"] {
+  height: var(--space-xs);
+  top: calc(50% - var(--space-2xs));
+  border-radius: var(--radius-full);
+}
+.trackFill[data-rate="true"] i {
+  position: absolute;
+  width: var(--space-sm);
+  height: var(--space-sm);
+  right: calc(var(--space-xs) * -1);
+  top: calc(var(--space-2xs) * -1);
+  border-radius: var(--radius-full);
+  outline: var(--border-width-medium) solid var(--card);
+}
+.trackGrid {
+  position: absolute;
+  inset: calc(var(--space-lg) * -1) 0;
+  pointer-events: none;
+}
+.trackGrid i {
+  position: absolute;
+  height: 100%;
+  border-left: var(--border-width-thin) dashed var(--chart-grid);
+  opacity: var(--opacity-muted);
+}
+.targetTick {
+  position: absolute;
+  top: -8%;
+  height: 116%;
+  border-left: var(--border-width-thin) dashed var(--chart-axis);
+  opacity: var(--opacity-muted);
+}
+.rowValue {
+  font-size: var(--body-small-font-size);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  color: var(--foreground);
+  white-space: nowrap;
+}
+.trackAxis {
+  margin-left: calc(var(--label-width) + var(--space-sm));
+  margin-right: calc(var(--value-width) + var(--space-sm));
+  display: flex;
+  justify-content: space-between;
+  color: var(--muted-foreground);
+  font-size: var(--body-small-font-size);
+  font-variant-numeric: tabular-nums;
+}
+.trackAxis > :first-child,
+.trackAxis > :last-child {
+  display: none;
+}
+@container (width < 30rem) {
+  .trackAxis > :nth-child(3),
+  .trackAxis > :nth-child(5) {
+    display: none;
+  }
+}
+@container (width < 22rem) {
+  .trackAxis > :nth-child(4) {
+    display: none;
+  }
+}
+.trend {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+.trendSurface {
+  position: relative;
+  height: calc(var(--spacing-header-lg) * 4);
+  min-height: var(--spacing-media-3xl);
+  flex: 1;
+}
+.trendSurface > svg {
+  position: absolute;
+  inset: 0;
+}
+.svgGrid line {
+  stroke: var(--chart-grid);
+  stroke-width: var(--border-width-thin);
+  stroke-dasharray: var(--space-2xs) var(--space-2xs);
+}
+.svgGrid text,
+.noSeries {
+  fill: var(--muted-foreground);
+  font-size: var(--body-small-font-size);
+}
+.actualLine {
+  stroke-width: var(--border-width-medium);
+  stroke-linejoin: round;
+}
+.trendLineHit {
+  stroke-width: var(--spacing-icon-sm);
+  pointer-events: stroke;
+}
+.referenceLine {
+  stroke-width: var(--border-width-thin);
+  stroke-dasharray: var(--space-xs) var(--space-xs);
+  opacity: var(--opacity-muted);
+}
+.point {
+  stroke: var(--card);
+  stroke-width: var(--border-width-thin);
+}
+.trendHit line {
+  pointer-events: none;
+  stroke: var(--chart-axis);
+  stroke-width: var(--border-width-thin);
+  stroke-dasharray: var(--space-xs) var(--space-xs);
+  opacity: 0;
+}
+.trendHit,
+.trendPointHit {
+  outline: none;
+}
+.trendPointHit:focus-visible {
+  stroke: var(--ring);
+  stroke-width: var(--border-width-medium);
+}
+.trendHit:hover line,
+.trendHit:focus-visible line {
+  opacity: var(--opacity-muted);
+}
+.tip {
+  min-width: var(--spacing-media-3xl);
+  max-width: var(--container-overlay-md);
+  font-size: var(--body-small-font-size);
+}
+.tip > strong {
+  display: block;
+  margin-bottom: var(--space-sm);
+}
+.tip dl,
+.tip dl > div {
+  display: grid;
+  gap: var(--space-xs) var(--space-lg);
+}
+.tip dl > div {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+.tip dt {
+  color: var(--muted-foreground);
+}
+.tip dd {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.comparisonTip {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+.comparisonTip th,
+.comparisonTip td {
+  padding: var(--space-xs) var(--space-sm);
+  text-align: right;
+  white-space: nowrap;
+}
+.comparisonTip th:first-child {
+  padding-left: 0;
+  text-align: left;
+}
+.comparisonTip th:last-child,
+.comparisonTip td:last-child {
+  padding-right: 0;
+}
+.comparisonTip thead th {
+  padding-top: 0;
+  border-bottom: var(--border-width-thin) solid var(--border);
+  color: var(--muted-foreground);
+  font-weight: normal;
+}
+.comparisonTip tbody th {
+  font-weight: normal;
+}
+.comparisonTip tbody tr:last-child > * {
+  padding-bottom: 0;
+}
+.comparisonTip tr[data-highlighted="true"] {
+  background: var(--primary-muted);
+}
+.comparisonLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+.comparisonLabel i {
+  width: var(--space-sm);
+  height: var(--space-sm);
+  border-radius: var(--radius-full);
+  flex: none;
+}
+.distribution {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
+  align-items: center;
+  gap: var(--space-md);
+  flex: 1;
+  min-height: calc(var(--spacing-header-lg) * 4);
+}
+.donut {
+  width: 100%;
+  max-width: var(--spacing-media-3xl);
+  margin: auto;
+  overflow: visible;
+}
+.donutBack,
+.donutArc {
+  stroke-width: var(--space-md);
+}
+.donutBack {
+  stroke: var(--muted);
+}
+.donutValue {
+  fill: var(--primary-text);
+  font-size: var(--heading-3-font-size);
+  font-weight: var(--heading-3-font-weight);
+  font-variant-numeric: tabular-nums;
+}
+.donutCaption {
+  fill: var(--muted-foreground);
+  font-size: var(--body-small-font-size);
+}
+.distributionRows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+.distributionRows button {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  font-size: var(--body-small-font-size);
+  min-height: var(--spacing-control-xl);
+  text-align: left;
+}
+.distributionRows strong {
+  margin-left: auto;
+  font-weight: var(--body-font-weight);
+  font-variant-numeric: tabular-nums;
+}
+.matrix {
+  --label-width: calc(var(--spacing-table-col-fixed) * 1.8);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  flex: 1;
+  min-height: calc(var(--spacing-header-lg) * 4);
+}
+.matrixHead,
+.matrixRow {
+  display: grid;
+  grid-template-columns: var(--label-width) repeat(
+      var(--matrix-columns),
+      minmax(0, 1fr)
+    );
+  align-items: center;
+  gap: var(--space-xs);
+}
+.matrixHead {
+  color: var(--muted-foreground);
+  font-size: var(--body-small-font-size);
+  text-align: center;
+}
+.matrixRow {
+  flex: 1;
+}
+.matrixCell {
+  min-width: 0;
+  height: 100%;
+  min-height: var(--spacing-control-xl);
+  border-radius: var(--radius-sm);
+  background: var(--muted);
+  color: var(--muted-foreground);
+  font-size: var(--body-small-font-size);
+  font-variant-numeric: tabular-nums;
+}
+.matrixCell[data-attention="true"] {
+  background: var(--warning-muted);
+  color: var(--warning-text);
+}
+.matrixCell[aria-pressed="true"] {
+  outline: var(--border-width-thin) solid var(--primary);
+}
+.trackRow:focus-visible,
+.matrix button:focus-visible,
+.distributionRows button:focus-visible {
+  outline: var(--border-width-medium) solid var(--ring);
+  outline-offset: var(--space-2xs);
+}
+@media (max-width: 40rem) {
+  .panel {
+    padding: var(--space-md);
+  }
+  .trackPlot[data-chart-labels="people"],
+  .matrix {
+    --label-width: calc(var(--spacing-table-col-fixed) * 1.4);
+  }
+  .trackPlot {
+    --value-width: var(--spacing-table-col-fixed);
+  }
+}
+
+.trackPlot[data-chart-layout="stacked"] .trackFill {
+  border-radius: 0;
+}
+.trackPlot[data-chart-layout="rate"] .trackBack {
+  height: var(--space-xs);
+  top: calc(50% - var(--space-2xs));
+  border-radius: var(--radius-full);
+}

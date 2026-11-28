@@ -1,3 +1,5 @@
+import { assessDeals } from "../pipeline/deal-assessments";
+import { getMessages } from "../lib/i18n/server";
 import type { AttainmentMetricTarget } from "../../domains/planning/attainment-plan";
 import { cache } from "react";
 import { can } from "../../authz/decide";
@@ -21,38 +23,64 @@ export const loadAttainmentAnalysis = cache(
   async (year: number, period: string, revision: string | null) => {
     const data = await loadAttainmentBase();
     if (!data) return null;
-    const [plan, accountResult, team, history, focus, actionResults] =
-      await Promise.all([
-        loadAttainmentPlan(year, revision),
-        listAccounts({
+    const [
+      plan,
+      accountResult,
+      team,
+      history,
+      focus,
+      assessments,
+      actionResults,
+    ] = await Promise.all([
+      loadAttainmentPlan(year, revision),
+      listAccounts({
+        ...data.base,
+        store: data.session.stores.account(),
+      }).catch(() => null),
+      loadAttainmentTeam(),
+      readCooperationHistory({
+        ...data.base,
+        store: data.session.stores.account(),
+      }).catch(() => null),
+      readFocusWorkspace(
+        {
           ...data.base,
-          store: data.session.stores.account(),
-        }).catch(() => null),
-        loadAttainmentTeam(),
-        readCooperationHistory({
+          scope: data.session.scope,
+          store: getSalesPlanStore(),
+          accounts: data.session.stores.account(),
+        },
+        { year, period, revisionId: revision ?? undefined },
+        { includeContactDetails: false },
+      ).catch(() => null),
+      data.deals.ok
+        ? getMessages()
+            .then((m) =>
+              assessDeals(
+                data.session,
+                data.deals.ok
+                  ? data.deals.value
+                      .filter((d) => d.status === "open")
+                      .map((opportunity) => ({
+                        opportunity,
+                        daysAtStage: null,
+                      }))
+                  : [],
+                m.POSITION_TEXT.rivalWords,
+                new Date(data.observedAt),
+              ),
+            )
+            .catch(() => null)
+        : Promise.resolve(null),
+      readPlanActionResults(
+        {
           ...data.base,
-          store: data.session.stores.account(),
-        }).catch(() => null),
-        readFocusWorkspace(
-          {
-            ...data.base,
-            scope: data.session.scope,
-            store: getSalesPlanStore(),
-            accounts: data.session.stores.account(),
-          },
-          { year, period, revisionId: revision ?? undefined },
-          { includeContactDetails: false },
-        ).catch(() => null),
-        readPlanActionResults(
-          {
-            ...data.base,
-            scope: data.session.scope,
-            store: getSalesPlanStore(),
-            accounts: data.session.stores.account(),
-          },
-          { year, period, revisionId: revision ?? undefined },
-        ).catch(() => null),
-      ]);
+          scope: data.session.scope,
+          store: getSalesPlanStore(),
+          accounts: data.session.stores.account(),
+        },
+        { year, period, revisionId: revision ?? undefined },
+      ).catch(() => null),
+    ]);
     const accounts: AnalysisAccount[] | null = accountResult?.ok
       ? accountResult.value.map((a) => ({
           id: a.id,
@@ -99,6 +127,14 @@ export const loadAttainmentAnalysis = cache(
       ).allowed
         ? ("failed" as const)
         : ("denied" as const),
+      review: assessments
+        ? Object.fromEntries(
+            [...assessments].map(([id, a]) => [
+              id,
+              { exit: a.exit, risk: a.risk, score: a.score },
+            ]),
+          )
+        : null,
       self: data.session.user.sub,
       workspace: data.session.scope.kind === "workspace",
       completeRoster:

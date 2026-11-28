@@ -1,6 +1,7 @@
 import { EmptyState } from "@vxture/design-system";
 import { can } from "../../authz/decide";
-import { loadAttainmentBase } from "./board";
+import { snapshotKey } from "../lib/attainment-progress";
+import { loadAttainmentBase, loadForecastWorkspace } from "./board";
 import { loadAttainmentAnalysis } from "./analysis-board";
 import {
   resolveAttainmentQuery,
@@ -32,6 +33,7 @@ export const dynamic = "force-dynamic";
 type Query = AttainmentQuery & {
   metric?: string | string[];
   filter?: string | string[];
+  teamView?: string | string[];
 };
 export default async function AttainmentPage({
   searchParams,
@@ -48,7 +50,12 @@ export default async function AttainmentPage({
   const locale = await resolveLocale(),
     T = attainmentCopy(locale);
   let screen = attainmentScreen(query);
-  if (!screen || Array.isArray(query.metric) || Array.isArray(query.filter))
+  if (
+    !screen ||
+    Array.isArray(query.metric) ||
+    Array.isArray(query.filter) ||
+    Array.isArray(query.teamView)
+  )
     return <EmptyState title={T.failed} />;
   if (
     !query.screen &&
@@ -84,7 +91,9 @@ export default async function AttainmentPage({
   if (screen === "region" && !region) return <EmptyState title={T.failed} />;
   const owner = data.members.find((m) => scope === `owner:${m.sub}`);
   const name =
-    region?.name ?? owner?.name ?? (scope === "workspace" ? T.companyScope : T.selfScope);
+    region?.name ??
+    owner?.name ??
+    (scope === "workspace" ? T.companyScope : T.selfScope);
   const metric =
     typeof query.metric === "string" &&
     ["revenue", "pipeline", "new_logo", "margin"].includes(query.metric)
@@ -92,10 +101,37 @@ export default async function AttainmentPage({
       : "revenue";
   const filter =
     typeof query.filter === "string" &&
-    ["all", "attention", "achieved"].includes(query.filter)
+    [
+      "all",
+      "attention",
+      "achieved",
+      "unverified",
+      "commit",
+      "missingBasis",
+      "delayed",
+    ].includes(query.filter)
       ? query.filter
       : "all";
   const forecast = screen === "forecast" || screen === "history";
+  const forecastBoard =
+    forecast && data.canForecast
+      ? await loadForecastWorkspace(selection.period, selection.scopeKey)
+      : null;
+  const reports = forecastBoard?.ok
+    ? forecastBoard.points.map((p) => ({
+        key: snapshotKey(p),
+        label:
+          p.snapshotAt.toLocaleString(locale, {
+            timeZone: "UTC",
+            month: "2-digit",
+            day: "2-digit",
+            hour: "2-digit",
+            minute: "2-digit",
+            hour12: false,
+          }) + " UTC",
+      }))
+    : [];
+  const teamView = query.teamView === "rate" ? "rate" : "amount";
   const slice =
     base.deals.ok && base.policy.ok
       ? revenuePool(
@@ -119,6 +155,7 @@ export default async function AttainmentPage({
       "ui",
     ).allowed ? (
       <SubmitForecast
+        key={`submit-${selection.period}-${selection.scopeKey}`}
         period={selection.period}
         scopeKey={selection.scopeKey}
         currency={totals.closedAmount.currency}
@@ -144,20 +181,22 @@ export default async function AttainmentPage({
         name={name}
         metric={metric}
         filter={filter}
-        submit={submit}
+        teamView={teamView}
+        reports={reports}
+        snapshot={selection.snapshot}
       />
       {!data.targets || !data.currency ? (
         <EmptyState title={T.failed} />
       ) : screen === "company" ? (
         <CompanyReading data={data} />
       ) : screen === "customers" ? (
-        <CustomerReading data={data} filter={filter} />
+        <CustomerReading data={data} filter={filter} scope={scope} />
       ) : screen === "regions" ? (
         <RegionalCharts data={data} metric={metric} />
       ) : screen === "region" ? (
         <RegionalReading data={data} scope={scope} name={name} />
       ) : screen === "team" ? (
-        <TeamCharts data={data} />
+        <TeamCharts data={data} view={teamView} />
       ) : screen === "mine" ? (
         <PersonalReading data={data} scope={scope} filter={filter} />
       ) : forecast && data.canForecast ? (
@@ -185,6 +224,8 @@ export default async function AttainmentPage({
             ).allowed
           }
           planRevision={selection.planRevision}
+          analysis={data}
+          submit={submit}
         />
       ) : (
         <EmptyState title={T.failed} />

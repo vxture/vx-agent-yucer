@@ -272,6 +272,29 @@ test("one customer keeps distinct project owners and actionable undated projects
   );
 });
 
+test("diagnosis priority and duplicate customer identities have a locale-independent render order", () => {
+  const accounts = [
+    { ...account("star"), name: "\u661f\u6cb3" },
+    { ...account("ink-b"), name: "\u58a8\u5ddd" },
+    { ...account("risk"), name: "Zulu" },
+    { ...account("ink-a"), name: "\u58a8\u5ddd" },
+  ];
+  const projects = accounts.map((a) =>
+    deal({
+      id: a.id,
+      accountId: a.id,
+      status: "open",
+      expectedCloseAt: a.id === "risk" ? null : "2026-12-01T00:00:00Z",
+    }),
+  );
+  const order = (rows: AnalysisDeal[]) =>
+    customerProjects(accounts, rows, "rep", "workspace", "Y2026").map(
+      (g) => g.account.id,
+    );
+  assert.deepEqual(order(projects), ["risk", "ink-a", "ink-b", "star"]);
+  assert.deepEqual(order([...projects].reverse()), order(projects));
+});
+
 test("unknown historical upper bounds never imply zero acquisitions; hidden accounts are excluded", () => {
   const h = history("a", "2026-01-01", {
     state: "before_year",

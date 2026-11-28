@@ -19,6 +19,8 @@ import {
   ShellHeader,
   ShellHeaderActions,
   ShellViewport,
+  Drawer,
+  useMediaQuery,
   StatusBadge,
   NativeSelect,
 } from "@vxture/design-ui";
@@ -218,6 +220,18 @@ export function AppShell({
     null,
   );
   const [attainmentExpanded, setAttainmentExpanded] = useState(true);
+  const attainmentInlineNav = useMediaQuery("(min-width: 1280px)");
+  const [attainmentNavDrawer, setAttainmentNavDrawer] = useState(false);
+  const attainmentCollapsed = !attainmentInlineNav || !attainmentExpanded;
+  const toggleAttainmentNav = () => {
+    if (attainmentInlineNav) setAttainmentExpanded((value) => !value);
+    else setAttainmentNavDrawer((value) => !value);
+  };
+  useEffect(() => {
+    const close = () => setAttainmentNavDrawer(false);
+    window.addEventListener("yucer:attainment-navigation", close);
+    return () => window.removeEventListener("yucer:attainment-navigation", close);
+  }, []);
   const [dockState, setDockState] = useState({ path: pathname, open: pathname === "/copilot/today" ? false : dockOpen });
   const inheritedDockOpen = pathname !== "/copilot/today" && dockState.open;
   const showDock = dockState.path === pathname ? dockState.open : inheritedDockOpen;
@@ -331,11 +345,11 @@ export function AppShell({
       // content and assistant in the body; object details also supply a dossier.
       sidebar={isAdmin ? <AdminNav nav={admin} pathname={pathname}
         collapsed={!adminNavExpanded} onToggleCollapsed={toggleAdminNav} /> : isAttainment ? (
-        <AttainmentNav data={attainmentNav} collapsed={!attainmentExpanded}
-          onToggleCollapsed={() => setAttainmentExpanded((v) => !v)} />
+        <AttainmentNav data={attainmentNav} collapsed={attainmentCollapsed}
+          onToggleCollapsed={toggleAttainmentNav} />
       ) : null}
       sidebarMode={isAdmin ? (adminNavExpanded ? "expanded" : "collapsed")
-        : isAttainment ? (attainmentExpanded ? "expanded" : "collapsed") : "hidden"}
+        : isAttainment ? (attainmentCollapsed ? "collapsed" : "expanded") : "hidden"}
       dock={assistantAvailable ? (
         <div ref={dockRef} aria-hidden={!deckVisible} inert={!deckVisible} className={workspaceInsets.assistantDock} data-pane-open={deckVisible}
           data-assistant-width={assistantWidth}>
@@ -596,6 +610,16 @@ export function AppShell({
         {isDossierPage || pathname === "/copilot" || pathname === "/copilot/today" ? children : <WorkspaceContent>{children}</WorkspaceContent>}
       </div>
     </ShellViewport>
+    <Drawer
+      open={isAttainment && !attainmentInlineNav && attainmentNavDrawer}
+      onClose={() => setAttainmentNavDrawer(false)}
+      side="left"
+      width="calc(var(--spacing-sidebar-expanded) + var(--space-lg) * 2)"
+      fallbackTitle={locale.startsWith("zh") ? "\u627f\u8bfa\u8fbe\u6210\u5bfc\u822a" : "Attainment navigation"}
+    >
+      <AttainmentNav data={attainmentNav} collapsed={false}
+        onToggleCollapsed={() => setAttainmentNavDrawer(false)} />
+    </Drawer>
     </WorkspaceLayoutProvider>
     </FormAssistSlotProvider>
     </AssistantVisibilityProvider>

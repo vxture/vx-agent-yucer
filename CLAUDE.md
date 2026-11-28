@@ -348,15 +348,20 @@ so violating them fails at runtime rather than at review:
   gating formula locally (UI `tier != null`, data `tier != null || bundled`).
 - Adding a writable domain column REQUIRES updating `98_column_locks.sql`, or the
   service-role write fails with permission denied. That failure is the design.
-- Product UI is built from `@vxture/design-system` (^9.0.4) only. Do not hand-roll
-  components, copy DS source into the repo, or fork it locally to tweak styling.
-  A missing element is a request to the DS, not a local build; if a stopgap is
-  genuinely unavoidable, register it as a TD entry (missing element, stopgap
-  location, recovery condition) - silent deviation fails self-rectify acceptance.
-  The only sanctioned local wrapper is a thin one that binds a DS element to this
-  product's domain semantics; it must not restyle the DS. Theme and design tokens
-  come from the DS - `@yucer/shared`'s `brand.ts` carries product identity only,
-  never colours, spacing, or type.
+- Product UI uses `@vxture/design-system` for the shared framework, foundational
+  controls, accessibility and design tokens. Do not copy or fork DS source.
+  Owner clarification (2026-11-28): product-specific layouts and visual effects
+  must faithfully implement the approved product design. Build reusable business
+  components and scoped CSS for metric cards, customer/project diagnosis,
+  business charts and other domain compositions; they are supported product
+  code, not temporary DS gaps. Reuse them across the relevant views instead of
+  duplicating page CSS or substituting generic DS defaults for approved designs.
+  Colors, spacing, typography, control sizes and themes still use DS tokens and
+  respect global density/text preferences. Report a genuinely missing token.
+  Missing shared framework primitives belong upstream; an unavoidable framework
+  stopgap still needs a TD entry with its recovery condition. Business CSS must
+  not globally override foundational controls. `@yucer/shared`'s `brand.ts`
+  carries product identity only, never colors, spacing, or type.
 - `@vxture/design-system` and `@vxture/design-ui` are declared at the `latest`
   dist-tag, NOT locked (owner, 2026-09-10: the DS is not to be locked; use latest).
   The lockfile still records the exact resolved versions, so a build is
